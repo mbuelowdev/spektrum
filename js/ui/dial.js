@@ -140,9 +140,10 @@ export function renderDial(container, room, localPlayerUuid, onDialDegreeClick, 
 
   if (showTarget && !Number.isNaN(targetDeg)) {
     // 2 points (widest), 3 points, 4 points (narrowest)
-    drawTargetZoneSector(svgNS, svg, cx, cy, R, targetDeg, 45, "#f3cc4b", "0.75");
-    drawTargetZoneSector(svgNS, svg, cx, cy, R, targetDeg, 27, "#e48a3a", "0.75");
-    drawTargetZoneSector(svgNS, svg, cx, cy, R, targetDeg, 9, "#8ec5ff", "0.75");
+    let sectorSize = 6;
+    drawTargetZoneSector(svgNS, svg, cx, cy, R, targetDeg, sectorSize * 5, "#f3cc4b", "0.75");
+    drawTargetZoneSector(svgNS, svg, cx, cy, R, targetDeg, sectorSize * 3, "#e48a3a", "0.75");
+    drawTargetZoneSector(svgNS, svg, cx, cy, R, targetDeg, sectorSize, "#8ec5ff", "0.75");
 
   }
 
