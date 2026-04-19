@@ -1,16 +1,30 @@
 /**
- * Semicircle dial: game degrees 0–160 mapped along arc (left→right).
+ * Semicircle dial: 180° total arc with 10° grey caps on both sides.
+ * Game degrees (0–160) are mapped to the center 160° active span.
  * Target + guess markers.
  */
 
-/** Map game value 0–160 along the full semicircle (left = 0, right = 160). */
-function polar(cx, cy, R, degreeGame) {
-  const t = Math.max(0, Math.min(160, degreeGame)) / 160;
+const GAME_DEG_MIN = 0;
+const GAME_DEG_MAX = 160;
+const DIAL_DEG_MIN = 0;
+const DIAL_DEG_MAX = 180;
+const DIAL_CAP_DEG = 10;
+const ACTIVE_DIAL_START = DIAL_DEG_MIN + DIAL_CAP_DEG; // 10
+const ACTIVE_DIAL_END = DIAL_DEG_MAX - DIAL_CAP_DEG; // 170
+
+/** Map dial degree (0–180) along the semicircle (left = 0, right = 180). */
+function polar(cx, cy, R, degreeDial) {
+  const t = Math.max(DIAL_DEG_MIN, Math.min(DIAL_DEG_MAX, degreeDial)) / DIAL_DEG_MAX;
   const rad = Math.PI - t * Math.PI;
   return {
     x: cx + R * Math.cos(rad),
     y: cy - R * Math.sin(rad),
   };
+}
+
+function gameToDialDeg(gameDeg) {
+  const clamped = clampDeg(gameDeg);
+  return ACTIVE_DIAL_START + clamped;
 }
 
 /**
@@ -58,17 +72,35 @@ export function renderDial(container, room, localPlayerUuid) {
   defs.appendChild(grad);
   svg.appendChild(defs);
 
-  const arcPath = arcPathD(cx, cy, R, 160);
-  const track = document.createElementNS(svgNS, "path");
-  track.setAttribute("d", arcPath);
-  track.setAttribute("fill", "none");
-  track.setAttribute("stroke", "url(#spDialGrad)");
-  track.setAttribute("stroke-width", "14");
-  track.setAttribute("stroke-linecap", "round");
-  svg.appendChild(track);
+  const trackWidth = "14";
+  const capColor = "var(--sp-text-muted)";
+
+  const leftCap = document.createElementNS(svgNS, "path");
+  leftCap.setAttribute("d", arcPathD(cx, cy, R, DIAL_DEG_MIN, ACTIVE_DIAL_START));
+  leftCap.setAttribute("fill", "none");
+  leftCap.setAttribute("stroke", capColor);
+  leftCap.setAttribute("stroke-width", trackWidth);
+  leftCap.setAttribute("stroke-linecap", "butt");
+  svg.appendChild(leftCap);
+
+  const activeTrack = document.createElementNS(svgNS, "path");
+  activeTrack.setAttribute("d", arcPathD(cx, cy, R, ACTIVE_DIAL_START, ACTIVE_DIAL_END));
+  activeTrack.setAttribute("fill", "none");
+  activeTrack.setAttribute("stroke", "url(#spDialGrad)");
+  activeTrack.setAttribute("stroke-width", trackWidth);
+  activeTrack.setAttribute("stroke-linecap", "butt");
+  svg.appendChild(activeTrack);
+
+  const rightCap = document.createElementNS(svgNS, "path");
+  rightCap.setAttribute("d", arcPathD(cx, cy, R, ACTIVE_DIAL_END, DIAL_DEG_MAX));
+  rightCap.setAttribute("fill", "none");
+  rightCap.setAttribute("stroke", capColor);
+  rightCap.setAttribute("stroke-width", trackWidth);
+  rightCap.setAttribute("stroke-linecap", "butt");
+  svg.appendChild(rightCap);
 
   if (showTarget && !Number.isNaN(targetDeg)) {
-    const t = clampDeg(targetDeg);
+    const t = gameToDialDeg(targetDeg);
     const p = polar(cx, cy, R - 4, t);
     const needle = document.createElementNS(svgNS, "line");
     needle.setAttribute("x1", String(cx));
@@ -93,7 +125,7 @@ export function renderDial(container, room, localPlayerUuid) {
   for (const g of guesses) {
     const d = g.degree != null ? Number(g.degree) : NaN;
     if (Number.isNaN(d)) continue;
-    const cc = clampDeg(d);
+    const cc = gameToDialDeg(d);
     const pt = polar(cx, cy, R + 4, cc);
     const dot = document.createElementNS(svgNS, "circle");
     dot.setAttribute("cx", String(pt.x));
@@ -114,11 +146,11 @@ export function renderDial(container, room, localPlayerUuid) {
   container.appendChild(labels);
 }
 
-function arcPathD(cx, cy, R, maxGameDeg) {
+function arcPathD(cx, cy, R, startDialDeg, endDialDeg) {
   const steps = 48;
   let d = "";
   for (let i = 0; i <= steps; i++) {
-    const dg = (maxGameDeg * i) / steps;
+    const dg = startDialDeg + ((endDialDeg - startDialDeg) * i) / steps;
     const { x, y } = polar(cx, cy, R, dg);
     d += (i === 0 ? "M " : " L ") + x.toFixed(2) + " " + y.toFixed(2);
   }
@@ -126,8 +158,8 @@ function arcPathD(cx, cy, R, maxGameDeg) {
 }
 
 function clampDeg(d) {
-  if (d < 0) return 0;
-  if (d > 160) return 160;
+  if (d < GAME_DEG_MIN) return GAME_DEG_MIN;
+  if (d > GAME_DEG_MAX) return GAME_DEG_MAX;
   return d;
 }
 
