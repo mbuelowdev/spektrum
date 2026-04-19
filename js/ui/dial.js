@@ -49,6 +49,8 @@ export function renderDial(container, room, localPlayerUuid, onDialDegreeClick, 
   const cy = 198;
   const R = 172;
   const guesses = Array.isArray(room.gameGuesses) ? room.gameGuesses : [];
+  const localTeam = teamForPlayer(room, localPlayerUuid);
+  const localRayColor = colorForTeam(localTeam);
 
   const svgNS = "http://www.w3.org/2000/svg";
   const svg = document.createElementNS(svgNS, "svg");
@@ -85,7 +87,7 @@ export function renderDial(container, room, localPlayerUuid, onDialDegreeClick, 
   rayArrow.setAttribute("orient", "auto");
   const rayArrowPath = document.createElementNS(svgNS, "path");
   rayArrowPath.setAttribute("d", "M 0 0 L 10 5 L 0 10 z");
-  rayArrowPath.setAttribute("fill", "var(--sp-primary)");
+  rayArrowPath.setAttribute("fill", localRayColor);
   rayArrow.appendChild(rayArrowPath);
   defs.appendChild(rayArrow);
 
@@ -147,29 +149,27 @@ export function renderDial(container, room, localPlayerUuid, onDialDegreeClick, 
     const cc = gameToDialDeg(d);
     const pt = polar(cx, cy, R + 4, cc);
     if (g.isPreview) {
+      const previewColor = colorForTeam(teamForPlayer(room, playerUuid(g.player)));
       const arrow = document.createElementNS(svgNS, "path");
       arrow.setAttribute("d", inwardArrowHeadPath(pt.x, pt.y, cx, cy, 7));
-      arrow.setAttribute("fill", "var(--sp-primary)");
+      arrow.setAttribute("fill", previewColor);
       arrow.setAttribute("opacity", "0.95");
       svg.appendChild(arrow);
       continue;
     }
-    const dot = document.createElementNS(svgNS, "circle");
-    dot.setAttribute("cx", String(pt.x));
-    dot.setAttribute("cy", String(pt.y));
-    dot.setAttribute("r", "7");
-    dot.setAttribute("fill", "var(--sp-primary)");
-    dot.setAttribute("opacity", "1");
-    dot.setAttribute("stroke", "#fff");
-    dot.setAttribute("stroke-width", "1");
-    svg.appendChild(dot);
+    const lockedColor = colorForTeam(teamForPlayer(room, playerUuid(g.player)));
+    const arrow = document.createElementNS(svgNS, "path");
+    arrow.setAttribute("d", inwardArrowHeadPath(pt.x, pt.y, cx, cy, 8));
+    arrow.setAttribute("fill", lockedColor);
+    arrow.setAttribute("opacity", "1");
+    svg.appendChild(arrow);
   }
 
   let clickRay = null;
   function upsertClickRay(edgePoint) {
     if (!clickRay) {
       clickRay = document.createElementNS(svgNS, "line");
-      clickRay.setAttribute("stroke", "var(--sp-primary)");
+      clickRay.setAttribute("stroke", localRayColor);
       clickRay.setAttribute("stroke-width", "2.75");
       clickRay.setAttribute("stroke-linecap", "linear");
       clickRay.setAttribute("marker-start", "url(#spDialRayArrow)");
@@ -275,6 +275,24 @@ function clampDeg(d) {
   if (d < GAME_DEG_MIN) return GAME_DEG_MIN;
   if (d > GAME_DEG_MAX) return GAME_DEG_MAX;
   return d;
+}
+
+function teamForPlayer(room, uid) {
+  if (!uid) return "";
+  const inA = Array.isArray(room.playersTeamA)
+    ? room.playersTeamA.some((p) => playerUuid(p) === uid)
+    : false;
+  if (inA) return "A";
+  const inB = Array.isArray(room.playersTeamB)
+    ? room.playersTeamB.some((p) => playerUuid(p) === uid)
+    : false;
+  if (inB) return "B";
+  return "";
+}
+
+function colorForTeam(team) {
+  if (team === "B") return "#7a99b4";
+  return "var(--sp-primary)";
 }
 
 function playerUuid(p) {
