@@ -67,6 +67,7 @@ export function renderDial(container, room, localPlayerUuid, onDialDegreeClick, 
   svg.setAttribute("viewBox", "0 0 400 228");
   svg.setAttribute("class", "sp-dial-svg");
   svg.style.maxHeight = "260px";
+  svg.style.overflow = "visible";
   const capClipId = `spCapClip-${Math.random().toString(36).slice(2, 10)}`;
 
   const defs = document.createElementNS(svgNS, "defs");
@@ -127,9 +128,9 @@ export function renderDial(container, room, localPlayerUuid, onDialDegreeClick, 
   // Base bar under the whole semicircle, matching the grey wedge color.
   const baseBar = document.createElementNS(svgNS, "rect");
   baseBar.setAttribute("x", String((cx - R).toFixed(2)));
-  baseBar.setAttribute("y", String(cy.toFixed(2)));
+  baseBar.setAttribute("y", String((cy - 1).toFixed(2)));
   baseBar.setAttribute("width", String((2 * R).toFixed(2)));
-  baseBar.setAttribute("height", "12");
+  baseBar.setAttribute("height", "13");
   baseBar.setAttribute("fill", capColor);
   svg.appendChild(baseBar);
   svg.appendChild(createCapSprinkleLayer(svgNS, capClipId));
@@ -200,7 +201,7 @@ export function renderDial(container, room, localPlayerUuid, onDialDegreeClick, 
       clickRay = document.createElementNS(svgNS, "line");
       clickRay.setAttribute("stroke", "var(--sp-text-muted)");
       clickRay.setAttribute("fill", "none");
-      clickRay.setAttribute("stroke-opacity", "0.25");
+      clickRay.setAttribute("stroke-opacity", "0.1");
       clickRay.setAttribute("stroke-width", "2.75");
       clickRay.setAttribute("stroke-linecap", "round");
       previewRayLayer.appendChild(clickRay);

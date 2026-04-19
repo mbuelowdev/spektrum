@@ -171,10 +171,6 @@ a:hover {
   margin: 0.75rem 0 0.25rem;
   text-align: center;
 }
-#sp-dial {
-  margin-top: 30px;
-}
-
 /* Sidebar desktop */
 @media (min-width: 768px) {
   .sp-sidebar-col {
