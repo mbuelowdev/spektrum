@@ -31,8 +31,9 @@ function gameToDialDeg(gameDeg) {
  * @param {HTMLElement} container
  * @param {object} room
  * @param {string} localPlayerUuid
+ * @param {(degree: number) => void} [onDialDegreeClick]
  */
-export function renderDial(container, room, localPlayerUuid) {
+export function renderDial(container, room, localPlayerUuid, onDialDegreeClick) {
   const card = room.gameActiveCard;
   const leftLabel = card && card.valueLeft ? card.valueLeft : "—";
   const rightLabel = card && card.valueRight ? card.valueRight : "—";
@@ -71,6 +72,22 @@ export function renderDial(container, room, localPlayerUuid) {
       stop.setAttribute("style", `stop-color:${col};stop-opacity:${op}`);
       grad.appendChild(stop);
     });
+
+  const rayArrow = document.createElementNS(svgNS, "marker");
+  rayArrow.setAttribute("id", "spDialRayArrow");
+  rayArrow.setAttribute("viewBox", "0 0 10 10");
+  // Tip (x=10) is anchored on the border; marker body sits outside.
+  rayArrow.setAttribute("refX", "10");
+  rayArrow.setAttribute("refY", "5");
+  rayArrow.setAttribute("markerWidth", "4.7");
+  rayArrow.setAttribute("markerHeight", "4.7");
+  rayArrow.setAttribute("orient", "auto");
+  const rayArrowPath = document.createElementNS(svgNS, "path");
+  rayArrowPath.setAttribute("d", "M 0 0 L 10 5 L 0 10 z");
+  rayArrowPath.setAttribute("fill", "var(--sp-primary)");
+  rayArrow.appendChild(rayArrowPath);
+  defs.appendChild(rayArrow);
+
   defs.appendChild(grad);
   svg.appendChild(defs);
 
@@ -139,6 +156,35 @@ export function renderDial(container, room, localPlayerUuid) {
     svg.appendChild(dot);
   }
 
+  let clickRay = null;
+  svg.style.cursor = "pointer";
+  svg.addEventListener("click", (ev) => {
+    const pt = svgPointFromEvent(svg, ev);
+    if (!pt) return;
+    const dialDeg = dialDegreeFromPoint(cx, cy, pt.x, pt.y);
+    const edge = polar(cx, cy, R, dialDeg);
+
+    if (!clickRay) {
+      clickRay = document.createElementNS(svgNS, "line");
+      clickRay.setAttribute("stroke", "var(--sp-primary)");
+      clickRay.setAttribute("stroke-width", "2.75");
+      clickRay.setAttribute("stroke-linecap", "linear");
+      clickRay.setAttribute("marker-start", "url(#spDialRayArrow)");
+      clickRay.setAttribute("opacity", "0.95");
+      clickRay.setAttribute("stroke-opacity", "0.65");
+      svg.appendChild(clickRay);
+    }
+    // Draw from edge to center so the outside arrowhead points inward.
+    clickRay.setAttribute("x1", String(edge.x));
+    clickRay.setAttribute("y1", String(edge.y));
+    clickRay.setAttribute("x2", String(cx));
+    clickRay.setAttribute("y2", String(cy));
+
+    if (typeof onDialDegreeClick !== "function") return;
+    const gameDeg = gameDegreeFromDialClick(cx, cy, pt.x, pt.y);
+    onDialDegreeClick(gameDeg);
+  });
+
   container.replaceChildren(svg);
 
   const labels = document.createElement("div");
@@ -161,6 +207,32 @@ function arcPathD(cx, cy, R, startDialDeg, endDialDeg) {
 function sectorPathD(cx, cy, outerR, startDialDeg, endDialDeg) {
   const outerArc = arcPathD(cx, cy, outerR, startDialDeg, endDialDeg);
   return `${outerArc} L ${cx.toFixed(2)} ${cy.toFixed(2)} Z`;
+}
+
+function gameDegreeFromDialClick(cx, cy, x, y) {
+  const dialDeg = dialDegreeFromPoint(cx, cy, x, y);
+  const gameDeg = dialDeg - DIAL_CAP_DEG;
+  return clampDeg(gameDeg);
+}
+
+function dialDegreeFromPoint(cx, cy, x, y) {
+  const up = Math.max(0, cy - y);
+  const right = x - cx;
+  const angleFromRight = Math.atan2(up, right) * (180 / Math.PI);
+  return 180 - angleFromRight;
+}
+
+function svgPointFromEvent(svg, ev) {
+  const rect = svg.getBoundingClientRect();
+  if (!rect.width || !rect.height) return null;
+  const viewBox = svg.viewBox && svg.viewBox.baseVal ? svg.viewBox.baseVal : null;
+  if (!viewBox) return null;
+  const sx = viewBox.width / rect.width;
+  const sy = viewBox.height / rect.height;
+  return {
+    x: (ev.clientX - rect.left) * sx + viewBox.x,
+    y: (ev.clientY - rect.top) * sy + viewBox.y,
+  };
 }
 
 function clampDeg(d) {

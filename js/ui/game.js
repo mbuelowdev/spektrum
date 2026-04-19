@@ -159,7 +159,11 @@ export async function mountGame(root, roomUuid, player) {
     const dialMount = root.querySelector("#sp-dial");
     if (dialMount) {
       dialMount.innerHTML = "";
-      renderDial(dialMount, r, pl.localUuid);
+      renderDial(dialMount, r, pl.localUuid, (degree) => {
+        const input = root.querySelector("#sp-actions .sp-deg");
+        if (!input || !("value" in input)) return;
+        input.value = formatDialDegree(degree);
+      });
     }
 
     const actions = root.querySelector("#sp-actions");
@@ -498,6 +502,11 @@ function parseGuessDegree(input) {
     return { ok: false };
   }
   return { ok: true, value: String(n) };
+}
+
+function formatDialDegree(n) {
+  const rounded = Math.round(n * 100) / 100;
+  return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(2).replace(/\.?0+$/, "");
 }
 
 function wireActs(container, room, uid) {
