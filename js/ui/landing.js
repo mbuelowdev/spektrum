@@ -37,11 +37,19 @@ export function renderLanding(root, opts) {
       </div>
       <h1 class="h4 text-center sp-lead-title mb-4">${escapeHtml(name)}'s last played rooms</h1>
       <div class="list-group shadow-sm mb-3">${listItems}</div>
-      <button type="button" class="btn btn-primary w-100" id="btn-create-room">Create room</button>
+      <div class="d-grid gap-2">
+        <button type="button" class="btn btn-primary w-100" id="btn-create-room">Create room</button>
+        <button type="button" class="btn btn-outline-secondary w-100" id="btn-change-name">Change name</button>
+      </div>
     </div>`;
 
   root.querySelector("#btn-create-room")?.addEventListener("click", () => {
     void opts.onCreateRoom();
+  });
+
+  root.querySelector("#btn-change-name")?.addEventListener("click", () => {
+    localStorage.clear();
+    window.location.reload();
   });
 
   root.querySelectorAll(".sp-room-row").forEach((btn) => {
