@@ -61,16 +61,20 @@ export async function mountGame(root, roomUuid, player) {
             <line x1="4" y1="18" x2="20" y2="18" />
           </svg>
         </button>
-        <span class="navbar-brand mb-0 text-truncate small font-monospace" title="${escapeAttr(roomData.uuid || "")}">Room ${escapeHtml(shortId)}</span>
-        <div class="dropdown ms-auto">
-          <button class="btn btn-light border btn-sm" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Menu">⋯</button>
-          <ul class="dropdown-menu dropdown-menu-end">
-            <li><button class="dropdown-item" type="button" id="sp-copy-link">Copy room link</button></li>
-            ${isAdmin ? `<li><button class="dropdown-item" type="button" id="sp-refresh">Refresh room</button></li>` : ""}
-            ${isAdmin ? `<li><button class="dropdown-item" type="button" id="sp-new-game">New game</button></li>` : ""}
-            <li><hr class="dropdown-divider" /></li>
-            <li><button class="dropdown-item" type="button" id="sp-home">Home</button></li>
-          </ul>
+        <span class="sp-app-title me-2">Spektrum</span>
+        <span class="navbar-brand mb-0 text-truncate small font-monospace" title="${escapeAttr(roomData.uuid || "")}">Room ${escapeHtml(roomData.uuid || roomUuid)}</span>
+        <div class="ms-auto d-flex align-items-center gap-2">
+          <span class="small text-muted sp-topbar-player">You are: ${escapeHtml(pl.localName || "Player")}</span>
+          <div class="dropdown">
+            <button class="btn btn-light border btn-sm" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Menu">⋯</button>
+            <ul class="dropdown-menu dropdown-menu-end">
+              <li><button class="dropdown-item" type="button" id="sp-copy-link">Copy room link</button></li>
+              ${isAdmin ? `<li><button class="dropdown-item" type="button" id="sp-refresh">Refresh room</button></li>` : ""}
+            ${isAdmin ? `<li><button class="dropdown-item" type="button" id="sp-new-game">Reset points</button></li>` : ""}
+              <li><hr class="dropdown-divider" /></li>
+              <li><button class="dropdown-item" type="button" id="sp-home">Home</button></li>
+            </ul>
+          </div>
         </div>
       </nav>
       <div class="container-fluid flex-grow-1 sp-game-main">
@@ -266,32 +270,33 @@ function sidebarHtml(room, pl) {
   return `
     <h6 class="fw-semibold mb-3 text-body sp-sidebar-players-title d-none d-md-block">Players</h6>
     <div class="sp-team-a">
-      <h6>Team A</h6>
+      <h6><span>Team A</span><span class="sp-team-points">${room.gamePointsTeamA ?? 0}</span></h6>
       ${listA || `<div class="small text-muted">Empty</div>`}
     </div>
     <div class="sp-team-b">
-      <h6>Team B</h6>
+      <h6><span>Team B</span><span class="sp-team-points">${room.gamePointsTeamB ?? 0}</span></h6>
       ${listB || `<div class="small text-muted">Empty</div>`}
     </div>
     ${switchBlock}
     <hr class="my-3 border-secondary-subtle sp-sidebar-divider" />
     <div class="d-flex flex-wrap gap-2 gap-sm-3 justify-content-between align-items-center small text-muted mb-2">
-      <span><strong class="text-body">A</strong> ${room.gamePointsTeamA ?? 0}</span>
-      <span><strong class="text-body">B</strong> ${room.gamePointsTeamB ?? 0}</span>
-      <span class="text-nowrap ms-auto">Round ${(Number(room.gameRoundIndex) || 0) + 1}</span>
+      <span class="text-nowrap">Round ${(Number(room.gameRoundIndex) || 0) + 1}</span>
     </div>
-    <p class="small text-muted mb-0">State: <code>${escapeHtml(room.gameState || "—")}</code></p>
+    <p class="small text-muted mb-0">State: ${escapeHtml(room.gameState || "—")}</p>
   `;
 }
 
 function playerRow(p, myUuid, activeUuid) {
   const id = playerId(p);
-  const you = id === myUuid ? `<span class="sp-you">(you)</span>` : "";
+  const nameHtml = id === activeUuid
+    ? `<strong>${escapeHtml(p.name || "?")}</strong>`
+    : `${escapeHtml(p.name || "?")}`;
+  const you = id === myUuid ? `<span class="sp-you">You</span>` : "";
   const cg =
     activeUuid && id === activeUuid
       ? `<span class="sp-cluegiver">Cluegiver</span>`
       : "";
-  return `<div class="sp-player">${escapeHtml(p.name || "?")} ${you} ${cg}</div>`;
+  return `<div class="sp-player">${nameHtml} ${you} ${cg}</div>`;
 }
 
 function stateHint(room, pl) {
@@ -489,20 +494,6 @@ function renderGuessRound(container, room, uid, gs, callbacks = {}) {
     }
   });
 
-  if (gs === "STATE_03_COUNTER_GUESS_ROUND") {
-    container.insertAdjacentHTML(
-      "beforeend",
-      `<button type="button" class="btn btn-outline-danger w-100 mt-3 sp-reveal-any">Reveal</button>`
-    );
-    container.querySelector(".sp-reveal-any")?.addEventListener("click", async () => {
-      try {
-        await gameAction(room.uuid, uid, "REVEAL", "-");
-        showToast("Reveal", "success");
-      } catch (e) {
-        showToast(e.message || "Failed", "danger");
-      }
-    });
-  }
 }
 
 /** Last degree this player has in `gameGuesses` (keeps the field filled after submit / Mercure refresh). */

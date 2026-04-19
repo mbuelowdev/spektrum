@@ -67,9 +67,18 @@ async function route() {
 async function ensurePlayer() {
   let uuid = storage.getPlayerUuid();
   let name = storage.getPlayerName();
-  if (uuid && name) return;
+  if (uuid && name) {
+    const normalized = storage.normalizePlayerName(name);
+    if (normalized !== name) {
+      storage.setPlayer(uuid, normalized);
+    }
+    return;
+  }
 
-  const chosenName = await promptPlayerNameModal();
+  const chosenName = storage.normalizePlayerName(await promptPlayerNameModal());
+  if (!chosenName) {
+    throw new Error("Player name cannot be empty");
+  }
   const res = await api.createPlayer(chosenName);
   const newUuid = res.uuid || res.Uuid;
   if (!newUuid) {
@@ -103,11 +112,23 @@ function promptPlayerNameModal() {
     const el = wrap.querySelector(".modal");
     const modal = new bootstrap.Modal(el);
     const form = wrap.querySelector("form");
+    const input = /** @type {HTMLInputElement} */ (form.querySelector('input[name="name"]'));
+    const validateName = () => {
+      const v = storage.normalizePlayerName(input.value || "");
+      input.setCustomValidity(v ? "" : "Please enter your name.");
+      return Boolean(v);
+    };
+    input.addEventListener("input", () => {
+      validateName();
+      input.reportValidity();
+    });
     form.addEventListener("submit", (e) => {
       e.preventDefault();
-      const input = /** @type {HTMLInputElement} */ (form.querySelector('input[name="name"]'));
-      const v = (input.value || "").trim();
-      if (!v) return;
+      if (!validateName()) {
+        input.reportValidity();
+        return;
+      }
+      const v = storage.normalizePlayerName(input.value || "");
       modal.hide();
       resolve(v);
     });

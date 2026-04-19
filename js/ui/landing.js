@@ -32,6 +32,9 @@ export function renderLanding(root, opts) {
 
   root.innerHTML = `
     <div class="container py-4 py-md-5 flex-grow-1 d-flex flex-column justify-content-center" style="max-width: 520px;">
+      <div class="text-center mb-3">
+        <span class="sp-app-title sp-app-title-home">Spektrum</span>
+      </div>
       <h1 class="h4 text-center sp-lead-title mb-4">${escapeHtml(name)}'s last played rooms</h1>
       <div class="list-group shadow-sm mb-3">${listItems}</div>
       <button type="button" class="btn btn-primary w-100" id="btn-create-room">Create room</button>

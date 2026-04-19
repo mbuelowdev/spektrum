@@ -13,6 +13,7 @@ const ACTIVE_DIAL_START = DIAL_DEG_MIN + DIAL_CAP_DEG; // 10
 const ACTIVE_DIAL_END = DIAL_DEG_MAX - DIAL_CAP_DEG; // 170
 const TARGET_RED = "#c62828";
 const CAP_BLUE = "#181a3c";
+const MARKER_DARK_GRAY = "#374151";
 const FINGER_SVG_PATH = "M448.159,262.68c-15.36-17.067-46.933-52.907-66.56-88.747c-1.707-1.707-24.747-39.253-50.347-67.413V84.333 C331.253,37.4,292.853-1,245.919-1h-85.333c-36.693,0-75.093,30.72-83.627,67.413c-1.707,9.387-5.12,17.067-8.533,20.48 c-8.533,10.24-18.773,34.133-18.773,65.707v136.533c0,23.893,18.773,42.667,42.667,42.667c9.387,0,18.773-3.413,25.6-8.533v8.533 c0,23.893,18.773,42.667,42.667,42.667c9.387,0,18.773-3.413,25.6-8.533c0,23.893,18.773,42.667,42.667,42.667 c9.387,0,18.773-3.413,25.6-8.533v68.267c0,23.893,18.773,42.667,42.667,42.667c23.893,0,42.667-18.773,43.52-42.667V274.627 c18.773,32.427,62.293,48.64,95.573,36.693c5.12-1.707,9.387-4.267,11.947-5.973c12.8-8.533,11.947-19.627,11.947-23.04 C460.959,277.187,460.106,276.333,448.159,262.68z M437.066,290.84c-3.413,1.707-5.973,3.413-8.533,4.267 c-22.187,7.68-58.88-2.56-75.093-30.72l-15.36-23.04c-0.338-0.676-0.779-1.247-1.291-1.729l-7.242-14.484 c-1.707-3.413-6.827-5.12-11.093-3.413c-3.413,1.707-5.12,6.827-3.413,11.093l7.68,15.36v220.16c0,14.507-11.093,25.6-25.6,25.6 c-14.507,0-25.6-11.093-25.6-25.6v-102.4V331.8V229.4c0-5.12-3.413-8.533-8.533-8.533s-8.533,3.413-8.533,8.533v102.4v34.133 c0,14.507-11.093,25.6-25.6,25.6c-14.507,0-25.6-11.093-25.6-25.6V331.8v-93.867c0-5.12-3.413-8.533-8.533-8.533 s-8.533,3.413-8.533,8.533V331.8c0,14.507-11.093,25.6-25.6,25.6c-14.507,0-25.6-11.093-25.6-25.6v-42.667V229.4 c0-5.12-3.413-8.533-8.533-8.533s-8.533,3.413-8.533,8.533v59.733c0,14.507-11.093,25.6-25.6,25.6s-25.6-11.093-25.6-25.6V152.6 c0-15.895,2.819-28.709,6.349-38.036c0.51-0.64,0.962-1.334,1.331-2.071C77.813,101.4,88.053,98.84,106.826,93.72l5.12-0.853 c4.267-1.707,7.68-6.827,5.973-11.093s-5.973-6.827-11.093-5.973l-4.267,0.853c-3.838,1.047-7.673,2.059-11.409,3.181 c0.982-3.118,1.93-6.46,2.876-10.007c5.973-29.013,37.547-53.76,66.56-53.76h85.333c37.547,0,68.267,30.72,68.267,68.267v7.726 c-1.67-1.209-3.366-2.363-5.12-3.459c-5.12-4.267-9.387-6.827-14.507-11.093c-3.413-3.413-8.533-2.56-11.947,0.853 s-2.56,8.533,0.853,11.947c5.12,5.12,10.24,8.533,15.36,11.947c5.493,3.924,10.986,7.856,16.479,12.443 c0.189,0.41,0.388,0.811,0.587,1.21c25.6,26.453,50.347,66.56,50.347,66.56c20.48,36.693,52.907,73.387,68.267,91.307 c2.56,3.413,5.973,7.68,7.68,9.387C442.186,285.72,441.333,288.28,437.066,290.84z";
 const FINGER_TIP_X = 297;
 const FINGER_TIP_Y = 494;
@@ -169,29 +170,35 @@ export function renderDial(container, room, localPlayerUuid, onDialDegreeClick, 
   svg.appendChild(centerDot);
 
   if (room.gameState === "STATE_04_REVEAL") {
-    const teamAAvg = averageTeamGuess(room, guesses, "A");
-    const teamBAvg = averageTeamGuess(room, guesses, "B");
-    if (Number.isFinite(teamAAvg)) {
-      const pt = polar(cx, cy, R + 4, gameToDialDeg(teamAAvg));
-      svg.appendChild(createWigglyTeamMarker(svgNS, pt.x, pt.y, cx, cy, colorForTeam("A")));
-    }
-    if (Number.isFinite(teamBAvg)) {
-      const pt = polar(cx, cy, R + 4, gameToDialDeg(teamBAvg));
-      svg.appendChild(createWigglyTeamMarker(svgNS, pt.x, pt.y, cx, cy, colorForTeam("B")));
+    const firstGuessTeam = firstGuessingTeamByRound(room);
+    for (const g of guesses) {
+      if (g.isPreview) continue;
+      const d = g.degree != null ? Number(g.degree) : NaN;
+      if (Number.isNaN(d)) continue;
+      const cc = gameToDialDeg(d);
+      const pt = polar(cx, cy, R + 4, cc);
+      const markerColor =
+        teamForPlayer(room, playerUuid(g.player)) === firstGuessTeam
+          ? TARGET_RED
+          : CAP_BLUE;
+      svg.appendChild(createStemArrowMarker(svgNS, pt.x, pt.y, cx, cy, 10, 12, 2.4, markerColor, false));
     }
   } else {
+    const firstGuessTeam = firstGuessingTeamByRound(room);
     for (const g of guesses) {
       const d = g.degree != null ? Number(g.degree) : NaN;
       if (Number.isNaN(d)) continue;
       const cc = gameToDialDeg(d);
       const pt = polar(cx, cy, R + 4, cc);
+      const markerColor =
+        teamForPlayer(room, playerUuid(g.player)) === firstGuessTeam
+          ? TARGET_RED
+          : CAP_BLUE;
       if (g.isPreview) {
-        const previewColor = colorForTeam(teamForPlayer(room, playerUuid(g.player)));
-        svg.appendChild(createFingerMarker(svgNS, pt.x, pt.y, cx, cy, 30, previewColor, true));
+        svg.appendChild(createStemArrowMarker(svgNS, pt.x, pt.y, cx, cy, 16, 20, 3.2, markerColor, true));
         continue;
       }
-      const lockedColor = colorForTeam(teamForPlayer(room, playerUuid(g.player)));
-      svg.appendChild(createFingerMarker(svgNS, pt.x, pt.y, cx, cy, 20, lockedColor, false));
+      svg.appendChild(createStemArrowMarker(svgNS, pt.x, pt.y, cx, cy, 10, 12, 2.4, markerColor, false));
     }
   }
 
@@ -269,12 +276,15 @@ function inwardArrowHeadPath(tipX, tipY, centerX, centerY, size) {
   const py = ux;
   const baseX = tipX - ux * size;
   const baseY = tipY - uy * size;
-  const wing = size * 0.55;
-  const x1 = baseX + px * wing;
-  const y1 = baseY + py * wing;
-  const x2 = baseX - px * wing;
-  const y2 = baseY - py * wing;
-  return `M ${tipX.toFixed(2)} ${tipY.toFixed(2)} L ${x1.toFixed(2)} ${y1.toFixed(2)} L ${x2.toFixed(2)} ${y2.toFixed(2)} Z`;
+  const wing = size * 0.58;
+  const leftX = baseX + px * wing;
+  const leftY = baseY + py * wing;
+  const rightX = baseX - px * wing;
+  const rightY = baseY - py * wing;
+  const notchX = tipX - ux * (size * 0.62);
+  const notchY = tipY - uy * (size * 0.62);
+  // Rounded head: curved shoulders + soft curved base.
+  return `M ${tipX.toFixed(2)} ${tipY.toFixed(2)} Q ${(tipX - ux * (size * 0.2) + px * (wing * 0.35)).toFixed(2)} ${(tipY - uy * (size * 0.2) + py * (wing * 0.35)).toFixed(2)} ${leftX.toFixed(2)} ${leftY.toFixed(2)} Q ${(baseX + px * (wing * 0.8)).toFixed(2)} ${(baseY + py * (wing * 0.15)).toFixed(2)} ${notchX.toFixed(2)} ${notchY.toFixed(2)} Q ${(baseX - px * (wing * 0.8)).toFixed(2)} ${(baseY - py * (wing * 0.15)).toFixed(2)} ${rightX.toFixed(2)} ${rightY.toFixed(2)} Q ${(tipX - ux * (size * 0.2) - px * (wing * 0.35)).toFixed(2)} ${(tipY - uy * (size * 0.2) - py * (wing * 0.35)).toFixed(2)} ${tipX.toFixed(2)} ${tipY.toFixed(2)} Z`;
 }
 
 function createPreviewArrow(svgNS, tipX, tipY, centerX, centerY, size, color) {
@@ -295,6 +305,59 @@ function createPreviewArrow(svgNS, tipX, tipY, centerX, centerY, size, color) {
   arrow.setAttribute("stroke-linejoin", "round");
   arrow.setAttribute("opacity", "0.98");
   g.appendChild(arrow);
+  return g;
+}
+
+function createStemArrowMarker(svgNS, tipX, tipY, centerX, centerY, headSize, stemLen, stemWidth, color, withHalo) {
+  const g = document.createElementNS(svgNS, "g");
+  const dx = centerX - tipX;
+  const dy = centerY - tipY;
+  const len = Math.hypot(dx, dy) || 1;
+  const ux = dx / len;
+  const uy = dy / len;
+
+  const stemStartOffset = headSize * 0.55;
+  const stemStartX = tipX - ux * stemStartOffset;
+  const stemStartY = tipY - uy * stemStartOffset;
+  const stemEndX = stemStartX - ux * stemLen;
+  const stemEndY = stemStartY - uy * stemLen;
+
+  if (withHalo) {
+    const haloStem = document.createElementNS(svgNS, "line");
+    haloStem.setAttribute("x1", String(stemStartX));
+    haloStem.setAttribute("y1", String(stemStartY));
+    haloStem.setAttribute("x2", String(stemEndX));
+    haloStem.setAttribute("y2", String(stemEndY));
+    haloStem.setAttribute("stroke", "#ffffff");
+    haloStem.setAttribute("stroke-width", String(stemWidth + 1.6));
+    haloStem.setAttribute("stroke-linecap", "round");
+    haloStem.setAttribute("opacity", "0.92");
+    g.appendChild(haloStem);
+  }
+
+  const stem = document.createElementNS(svgNS, "line");
+  stem.setAttribute("x1", String(stemStartX));
+  stem.setAttribute("y1", String(stemStartY));
+  stem.setAttribute("x2", String(stemEndX));
+  stem.setAttribute("y2", String(stemEndY));
+  stem.setAttribute("stroke", color);
+  stem.setAttribute("stroke-width", String(stemWidth));
+  stem.setAttribute("stroke-linecap", "round");
+  g.appendChild(stem);
+
+  if (withHalo) {
+    const haloHead = document.createElementNS(svgNS, "path");
+    haloHead.setAttribute("d", inwardArrowHeadPath(tipX, tipY, centerX, centerY, headSize + 2));
+    haloHead.setAttribute("fill", "#ffffff");
+    haloHead.setAttribute("opacity", "0.92");
+    g.appendChild(haloHead);
+  }
+
+  const head = document.createElementNS(svgNS, "path");
+  head.setAttribute("d", inwardArrowHeadPath(tipX, tipY, centerX, centerY, headSize));
+  head.setAttribute("fill", color);
+  head.setAttribute("opacity", "1");
+  g.appendChild(head);
   return g;
 }
 
@@ -336,6 +399,54 @@ function createFingerMarker(svgNS, tipX, tipY, centerX, centerY, size, color, wi
   teamDot.setAttribute("stroke-width", withHalo ? "8" : "6");
   teamDot.setAttribute("opacity", "0.95");
   g.appendChild(teamDot);
+  return g;
+}
+
+function createNameArrowMarker(svgNS, tipX, tipY, centerX, centerY, name, color, isPreview) {
+  const g = document.createElementNS(svgNS, "g");
+  const angle = (Math.atan2(centerY - tipY, centerX - tipX) * 180) / Math.PI;
+  g.setAttribute("transform", `translate(${tipX.toFixed(2)} ${tipY.toFixed(2)}) rotate(${angle.toFixed(2)})`);
+
+  const label = String(name || "?");
+  const charWidth = isPreview ? 7.4 : 6.8;
+  const minW = isPreview ? 36 : 30;
+  const maxW = isPreview ? 96 : 84;
+  const badgeH = isPreview ? 18 : 16;
+  const pointerLen = isPreview ? 12 : 10;
+  const padX = isPreview ? 8 : 7;
+  const textW = Math.max(minW, Math.min(maxW, label.length * charWidth + padX * 2));
+
+  const pointer = document.createElementNS(svgNS, "path");
+  pointer.setAttribute("d", `M 0 0 L ${-pointerLen} ${badgeH * 0.35} L ${-pointerLen} ${-badgeH * 0.35} Z`);
+  pointer.setAttribute("fill", color);
+  pointer.setAttribute("stroke", "#000");
+  pointer.setAttribute("stroke-width", isPreview ? "1.2" : "1");
+  g.appendChild(pointer);
+
+  const rect = document.createElementNS(svgNS, "rect");
+  rect.setAttribute("x", String(-(pointerLen + textW)));
+  rect.setAttribute("y", String(-(badgeH / 2)));
+  rect.setAttribute("width", String(textW));
+  rect.setAttribute("height", String(badgeH));
+  rect.setAttribute("rx", isPreview ? "5" : "4");
+  rect.setAttribute("fill", color);
+  rect.setAttribute("stroke", "#000");
+  rect.setAttribute("stroke-width", isPreview ? "1.2" : "1");
+  g.appendChild(rect);
+
+  const text = document.createElementNS(svgNS, "text");
+  text.setAttribute("x", String(-(pointerLen + textW / 2)));
+  text.setAttribute("y", "0");
+  text.setAttribute("text-anchor", "middle");
+  text.setAttribute("dominant-baseline", "central");
+  text.setAttribute("font-size", isPreview ? "9.5" : "8.8");
+  text.setAttribute("font-weight", isPreview ? "700" : "600");
+  text.setAttribute("fill", "#fff");
+  text.setAttribute("paint-order", "stroke");
+  text.setAttribute("stroke", "rgba(0,0,0,0.25)");
+  text.setAttribute("stroke-width", "0.6");
+  text.textContent = label;
+  g.appendChild(text);
   return g;
 }
 
@@ -477,11 +588,7 @@ function averageCurrentGuessingTeamGuess(room, guesses) {
     return NaN;
   }
   const first = firstGuessingTeamByRound(room);
-  const currentGuessingTeam =
-    gs === "STATE_03_COUNTER_GUESS_ROUND" || gs === "STATE_04_REVEAL"
-      ? counterTeamName(first)
-      : first;
-  return averageTeamGuess(room, guesses, currentGuessingTeam);
+  return averageTeamGuess(room, guesses, first);
 }
 
 function firstGuessingTeamByRound(room) {
@@ -539,8 +646,15 @@ function teamForPlayer(room, uid) {
 }
 
 function colorForTeam(team) {
-  if (team === "B") return "#7a99b4";
+  if (team === "A") return "var(--sp-team-a-accent)";
+  if (team === "B") return "var(--sp-team-b-accent)";
   return "var(--sp-primary)";
+}
+
+function shortPlayerName(p) {
+  const raw = p && p.name ? String(p.name).trim() : "";
+  if (!raw) return "?";
+  return raw.length > 10 ? `${raw.slice(0, 9)}…` : raw;
 }
 
 function playerUuid(p) {

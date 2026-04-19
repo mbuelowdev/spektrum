@@ -8,9 +8,18 @@ export function getPlayerName() {
   return localStorage.getItem(P + "playerName") || "";
 }
 
+export function normalizePlayerName(name) {
+  const raw = String(name ?? "");
+  // Strip HTML-like tags and normalize whitespace for safe, readable names.
+  const noTags = raw.replace(/<[^>]*>/g, "");
+  const noCtl = noTags.replace(/[\u0000-\u001F\u007F]/g, "");
+  const compact = noCtl.replace(/\s+/g, " ").trim();
+  return compact.slice(0, 64);
+}
+
 export function setPlayer(uuid, name) {
   localStorage.setItem(P + "playerUuid", uuid);
-  localStorage.setItem(P + "playerName", name.trim());
+  localStorage.setItem(P + "playerName", normalizePlayerName(name));
 }
 
 export function clearPlayer() {

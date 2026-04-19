@@ -7,14 +7,19 @@
   --sp-text: #2c2722;
   --sp-text-muted: #6b635a;
   --sp-border: #e8e1d9;
-  --sp-primary: #c45c26;
-  --sp-primary-hover: #a64a1e;
-  --sp-primary-tint: #f4e3d7;
+  --sp-primary: #475569;
+  --sp-primary-hover: #334155;
+  --sp-primary-tint: #e2e8f0;
   --sp-shadow: rgba(44, 39, 34, 0.06);
   --sp-success: #3f6f52;
   --sp-danger: #b54747;
-  --sp-team-a: #f3eae4;
-  --sp-team-b: #e9f0f4;
+  --sp-team-a-accent: #2563eb;
+  --sp-team-b-accent: #dc2626;
+  --sp-team-a-bg: #e5e7eb;
+  --sp-team-b-bg: #e5e7eb;
+  /* Legacy aliases; keep for compatibility where still referenced. */
+  --sp-team-a: var(--sp-team-a-bg);
+  --sp-team-b: var(--sp-team-b-bg);
   --sp-dial-1: rgba(212, 141, 96, 0.68);
   --sp-dial-2: rgba(212, 208, 202, 0.6);
   --sp-dial-3: rgba(122, 153, 180, 0.68);
@@ -44,7 +49,18 @@ body {
   --bs-btn-border-color: var(--sp-primary);
   --bs-btn-hover-bg: var(--sp-primary-hover);
   --bs-btn-hover-border-color: var(--sp-primary-hover);
-  --bs-btn-focus-shadow-rgb: 196, 92, 38;
+  --bs-btn-focus-shadow-rgb: 71, 85, 105;
+  --bs-btn-active-bg: var(--sp-primary-hover);
+  --bs-btn-active-border-color: var(--sp-primary-hover);
+}
+.btn-outline-primary {
+  --bs-btn-color: var(--sp-primary);
+  --bs-btn-border-color: var(--sp-primary);
+  --bs-btn-hover-color: #fff;
+  --bs-btn-hover-bg: var(--sp-primary);
+  --bs-btn-hover-border-color: var(--sp-primary);
+  --bs-btn-focus-shadow-rgb: 71, 85, 105;
+  --bs-btn-active-color: #fff;
   --bs-btn-active-bg: var(--sp-primary-hover);
   --bs-btn-active-border-color: var(--sp-primary-hover);
 }
@@ -89,27 +105,104 @@ a:hover {
   min-height: 3.25rem;
   z-index: 1020;
 }
+.sp-app-title {
+  font-family: "Trebuchet MS", "Avenir Next", "Segoe UI", sans-serif;
+  font-size: 1.2rem;
+  font-style: italic;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  line-height: 1;
+  white-space: nowrap;
+  background: linear-gradient(135deg, #f3cc4b 0%, #e48a3a 48%, #8ec5ff 100%);
+  background-size: 220% 220%;
+  animation: spTitleGradientShift 4.8s ease-in-out infinite;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.3), 0 2px 10px rgba(51, 65, 85, 0.18);
+}
+.sp-app-title::after {
+  content: "";
+  display: inline-block;
+  width: 1px;
+  height: 1.1rem;
+  margin: 0 0.65rem 0 0.55rem;
+  vertical-align: -0.15rem;
+  background: linear-gradient(to bottom, rgba(30, 41, 59, 0.12), rgba(30, 41, 59, 0.5), rgba(30, 41, 59, 0.12));
+}
+.sp-app-title-home::after {
+  content: none;
+}
+.sp-app-title-home {
+  font-size: clamp(2.6rem, 9vw, 4.2rem);
+  letter-spacing: 0.08em;
+  display: inline-block;
+  transform-origin: 50% 62%;
+  animation: spTitleGradientShift 4.8s ease-in-out infinite, spTitleWave 3.9s ease-in-out infinite;
+}
+
+@keyframes spTitleGradientShift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+@keyframes spTitleWave {
+  0% {
+    transform: translateX(0px) translateY(0px) rotate(0deg) scale(1);
+  }
+  20% {
+    transform: translateX(2.4px) translateY(-2.1px) rotate(0.8deg) scale(1.004);
+  }
+  40% {
+    transform: translateX(4.1px) translateY(0.6px) rotate(1.2deg) scale(0.999);
+  }
+  60% {
+    transform: translateX(2.3px) translateY(2.5px) rotate(0.2deg) scale(1.002);
+  }
+  80% {
+    transform: translateX(0.6px) translateY(0.7px) rotate(-0.6deg) scale(1.001);
+  }
+  100% {
+    transform: translateX(0px) translateY(0px) rotate(0deg) scale(1);
+  }
+}
 
 /* Team rows */
 .sp-team-a {
-  background-color: var(--sp-team-a);
+  background-color: var(--sp-team-a-bg);
   border-radius: 0.35rem;
   padding: 0.5rem 0.6rem;
   margin-bottom: 0.35rem;
 }
 .sp-team-b {
-  background-color: var(--sp-team-b);
+  background-color: var(--sp-team-b-bg);
   border-radius: 0.35rem;
   padding: 0.5rem 0.6rem;
   margin-bottom: 0.35rem;
 }
 .sp-team-a h6,
 .sp-team-b h6 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   font-size: 0.7rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--sp-text-muted);
   margin-bottom: 0.4rem;
+}
+.sp-team-points {
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  color: var(--sp-text);
 }
 .sp-player {
   font-size: 0.95rem;
@@ -120,14 +213,22 @@ a:hover {
   border-bottom: 0;
 }
 .sp-you {
-  font-weight: 600;
-  color: var(--sp-primary);
+  font-style: italic;
+  color: var(--sp-text-muted);
+  font-size: 0.8rem;
+  margin-left: 0.25rem;
 }
 .sp-cluegiver {
   font-style: italic;
   color: var(--sp-text-muted);
   font-size: 0.8rem;
   margin-left: 0.25rem;
+}
+.sp-topbar-player {
+  max-width: 10.5rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* Layout: game */
