@@ -80,7 +80,7 @@ export async function mountGame(root, roomUuid, player) {
           </aside>
           <main class="col-md-8 col-lg-9 px-2 px-md-4 pb-5">
             <div class="mx-auto sp-dial-wrap">
-              <div id="sp-clue" class="sp-clue-box small text-muted d-none"></div>
+              <div id="sp-clue" class="sp-clue-box text-muted"></div>
               <div id="sp-dial"></div>
             </div>
             <div id="sp-actions" class="mt-3 mx-auto" style="max-width: 420px"></div>
@@ -148,30 +148,27 @@ export async function mountGame(root, roomUuid, player) {
     const clueEl = root.querySelector("#sp-clue");
     if (clueEl) {
       const clue = r.gameCluegiverGuessText;
-      if (clue && String(clue).trim()) {
-        clueEl.textContent = clue;
-        clueEl.classList.remove("d-none");
-      } else {
-        clueEl.textContent = "";
-        clueEl.classList.add("d-none");
-      }
+      clueEl.textContent = clue && String(clue).trim() ? clue : "";
     }
 
     const dialMount = root.querySelector("#sp-dial");
     if (dialMount) {
       dialMount.innerHTML = "";
-      renderDial(dialMount, r, pl.localUuid, async (degree) => {
-        localDialRayDegree = degree;
-        const input = root.querySelector("#sp-actions .sp-deg");
-        if (!input || !("value" in input)) return;
-        const value = formatDialDegree(degree);
-        input.value = value;
-        try {
-          await gameAction(r.uuid, pl.localUuid, "SUBMIT_PREVIEW_GUESS", value);
-        } catch (e) {
-          showToast(e.message || "Could not save preview", "danger");
-        }
-      }, localDialRayDegree);
+      const dialClickHandler = canPlayerClickDial(r, pl.localUuid)
+        ? async (degree) => {
+            localDialRayDegree = degree;
+            const input = root.querySelector("#sp-actions .sp-deg");
+            if (!input || !("value" in input)) return;
+            const value = formatDialDegree(degree);
+            input.value = value;
+            try {
+              await gameAction(r.uuid, pl.localUuid, "SUBMIT_PREVIEW_GUESS", value);
+            } catch (e) {
+              showToast(e.message || "Could not save preview", "danger");
+            }
+          }
+        : undefined;
+      renderDial(dialMount, r, pl.localUuid, dialClickHandler, localDialRayDegree);
     }
 
     const actions = root.querySelector("#sp-actions");
@@ -543,6 +540,21 @@ function parseGuessDegree(input) {
 function formatDialDegree(n) {
   const rounded = Math.round(n * 100) / 100;
   return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(2).replace(/\.?0+$/, "");
+}
+
+function canPlayerClickDial(room, uid) {
+  if (!uid || !isPlayerInRoom(room, uid)) return false;
+  if (isActiveCluegiver(room, uid)) return false;
+  const gs = room.gameState || "";
+  if (gs !== "STATE_02_GUESS_ROUND" && gs !== "STATE_03_COUNTER_GUESS_ROUND") {
+    return false;
+  }
+  const team = findPlayerTeam(room, uid);
+  if (!team) return false;
+  if (gs === "STATE_02_GUESS_ROUND") {
+    return team === firstGuessingTeam(room);
+  }
+  return team === counterTeam(room);
 }
 
 function wireActs(container, room, uid) {

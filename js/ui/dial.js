@@ -151,7 +151,7 @@ export function renderDial(container, room, localPlayerUuid, onDialDegreeClick, 
     if (g.isPreview) {
       const previewColor = colorForTeam(teamForPlayer(room, playerUuid(g.player)));
       const arrow = document.createElementNS(svgNS, "path");
-      arrow.setAttribute("d", inwardArrowHeadPath(pt.x, pt.y, cx, cy, 7));
+      arrow.setAttribute("d", inwardArrowHeadPath(pt.x, pt.y, cx, cy, 24));
       arrow.setAttribute("fill", previewColor);
       arrow.setAttribute("opacity", "0.95");
       svg.appendChild(arrow);
@@ -172,7 +172,6 @@ export function renderDial(container, room, localPlayerUuid, onDialDegreeClick, 
       clickRay.setAttribute("stroke", localRayColor);
       clickRay.setAttribute("stroke-width", "2.75");
       clickRay.setAttribute("stroke-linecap", "linear");
-      clickRay.setAttribute("marker-start", "url(#spDialRayArrow)");
       clickRay.setAttribute("opacity", "0.95");
       clickRay.setAttribute("stroke-opacity", "0.65");
       svg.appendChild(clickRay);
@@ -189,19 +188,22 @@ export function renderDial(container, room, localPlayerUuid, onDialDegreeClick, 
     upsertClickRay(polar(cx, cy, R, persistedDialDeg));
   }
 
-  svg.style.cursor = "pointer";
-  svg.addEventListener("click", (ev) => {
-    const pt = svgPointFromEvent(svg, ev);
-    if (!pt) return;
-    const dialDeg = dialDegreeFromPoint(cx, cy, pt.x, pt.y);
-    const edge = polar(cx, cy, R, dialDeg);
+  if (typeof onDialDegreeClick === "function") {
+    svg.style.cursor = "pointer";
+    svg.addEventListener("click", (ev) => {
+      const pt = svgPointFromEvent(svg, ev);
+      if (!pt) return;
+      const dialDeg = dialDegreeFromPoint(cx, cy, pt.x, pt.y);
+      const edge = polar(cx, cy, R, dialDeg);
 
-    upsertClickRay(edge);
+      upsertClickRay(edge);
 
-    if (typeof onDialDegreeClick !== "function") return;
-    const gameDeg = gameDegreeFromDialClick(cx, cy, pt.x, pt.y);
-    onDialDegreeClick(gameDeg);
-  });
+      const gameDeg = gameDegreeFromDialClick(cx, cy, pt.x, pt.y);
+      onDialDegreeClick(gameDeg);
+    });
+  } else {
+    svg.style.cursor = "default";
+  }
 
   container.replaceChildren(svg);
 
