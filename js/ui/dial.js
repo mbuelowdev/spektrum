@@ -13,6 +13,12 @@ const ACTIVE_DIAL_START = DIAL_DEG_MIN + DIAL_CAP_DEG; // 10
 const ACTIVE_DIAL_END = DIAL_DEG_MAX - DIAL_CAP_DEG; // 170
 const TARGET_RED = "#c62828";
 const CAP_BLUE = "#181a3c";
+const FINGER_SVG_PATH = "M448.159,262.68c-15.36-17.067-46.933-52.907-66.56-88.747c-1.707-1.707-24.747-39.253-50.347-67.413V84.333 C331.253,37.4,292.853-1,245.919-1h-85.333c-36.693,0-75.093,30.72-83.627,67.413c-1.707,9.387-5.12,17.067-8.533,20.48 c-8.533,10.24-18.773,34.133-18.773,65.707v136.533c0,23.893,18.773,42.667,42.667,42.667c9.387,0,18.773-3.413,25.6-8.533v8.533 c0,23.893,18.773,42.667,42.667,42.667c9.387,0,18.773-3.413,25.6-8.533c0,23.893,18.773,42.667,42.667,42.667 c9.387,0,18.773-3.413,25.6-8.533v68.267c0,23.893,18.773,42.667,42.667,42.667c23.893,0,42.667-18.773,43.52-42.667V274.627 c18.773,32.427,62.293,48.64,95.573,36.693c5.12-1.707,9.387-4.267,11.947-5.973c12.8-8.533,11.947-19.627,11.947-23.04 C460.959,277.187,460.106,276.333,448.159,262.68z M437.066,290.84c-3.413,1.707-5.973,3.413-8.533,4.267 c-22.187,7.68-58.88-2.56-75.093-30.72l-15.36-23.04c-0.338-0.676-0.779-1.247-1.291-1.729l-7.242-14.484 c-1.707-3.413-6.827-5.12-11.093-3.413c-3.413,1.707-5.12,6.827-3.413,11.093l7.68,15.36v220.16c0,14.507-11.093,25.6-25.6,25.6 c-14.507,0-25.6-11.093-25.6-25.6v-102.4V331.8V229.4c0-5.12-3.413-8.533-8.533-8.533s-8.533,3.413-8.533,8.533v102.4v34.133 c0,14.507-11.093,25.6-25.6,25.6c-14.507,0-25.6-11.093-25.6-25.6V331.8v-93.867c0-5.12-3.413-8.533-8.533-8.533 s-8.533,3.413-8.533,8.533V331.8c0,14.507-11.093,25.6-25.6,25.6c-14.507,0-25.6-11.093-25.6-25.6v-42.667V229.4 c0-5.12-3.413-8.533-8.533-8.533s-8.533,3.413-8.533,8.533v59.733c0,14.507-11.093,25.6-25.6,25.6s-25.6-11.093-25.6-25.6V152.6 c0-15.895,2.819-28.709,6.349-38.036c0.51-0.64,0.962-1.334,1.331-2.071C77.813,101.4,88.053,98.84,106.826,93.72l5.12-0.853 c4.267-1.707,7.68-6.827,5.973-11.093s-5.973-6.827-11.093-5.973l-4.267,0.853c-3.838,1.047-7.673,2.059-11.409,3.181 c0.982-3.118,1.93-6.46,2.876-10.007c5.973-29.013,37.547-53.76,66.56-53.76h85.333c37.547,0,68.267,30.72,68.267,68.267v7.726 c-1.67-1.209-3.366-2.363-5.12-3.459c-5.12-4.267-9.387-6.827-14.507-11.093c-3.413-3.413-8.533-2.56-11.947,0.853 s-2.56,8.533,0.853,11.947c5.12,5.12,10.24,8.533,15.36,11.947c5.493,3.924,10.986,7.856,16.479,12.443 c0.189,0.41,0.388,0.811,0.587,1.21c25.6,26.453,50.347,66.56,50.347,66.56c20.48,36.693,52.907,73.387,68.267,91.307 c2.56,3.413,5.973,7.68,7.68,9.387C442.186,285.72,441.333,288.28,437.066,290.84z";
+const FINGER_TIP_X = 297;
+const FINGER_TIP_Y = 494;
+const FINGER_BASE_ANGLE_DEG = 90;
+const FINGER_DOT_X = 110;
+const FINGER_DOT_Y = 60;
 
 /** Map dial degree (0–180) along the semicircle (left = 0, right = 180). */
 function polar(cx, cy, R, degreeDial) {
@@ -180,16 +186,11 @@ export function renderDial(container, room, localPlayerUuid, onDialDegreeClick, 
       const pt = polar(cx, cy, R + 4, cc);
       if (g.isPreview) {
         const previewColor = colorForTeam(teamForPlayer(room, playerUuid(g.player)));
-        const previewArrow = createPreviewArrow(svgNS, pt.x, pt.y, cx, cy, 20, previewColor);
-        svg.appendChild(previewArrow);
+        svg.appendChild(createFingerMarker(svgNS, pt.x, pt.y, cx, cy, 30, previewColor, true));
         continue;
       }
       const lockedColor = colorForTeam(teamForPlayer(room, playerUuid(g.player)));
-      const arrow = document.createElementNS(svgNS, "path");
-      arrow.setAttribute("d", inwardArrowHeadPath(pt.x, pt.y, cx, cy, 8));
-      arrow.setAttribute("fill", lockedColor);
-      arrow.setAttribute("opacity", "1");
-      svg.appendChild(arrow);
+      svg.appendChild(createFingerMarker(svgNS, pt.x, pt.y, cx, cy, 20, lockedColor, false));
     }
   }
 
@@ -293,6 +294,47 @@ function createPreviewArrow(svgNS, tipX, tipY, centerX, centerY, size, color) {
   arrow.setAttribute("stroke-linejoin", "round");
   arrow.setAttribute("opacity", "0.98");
   g.appendChild(arrow);
+  return g;
+}
+
+function createFingerMarker(svgNS, tipX, tipY, centerX, centerY, size, color, withHalo) {
+  const g = document.createElementNS(svgNS, "g");
+  const angle = (Math.atan2(centerY - tipY, centerX - tipX) * 180) / Math.PI;
+  const rotateDeg = angle - FINGER_BASE_ANGLE_DEG;
+  const scale = size / 560;
+  g.setAttribute(
+    "transform",
+    `translate(${tipX.toFixed(2)} ${tipY.toFixed(2)}) rotate(${rotateDeg.toFixed(2)}) scale(${scale.toFixed(4)}) translate(${-FINGER_TIP_X} ${-FINGER_TIP_Y})`
+  );
+  if (withHalo) {
+    const shadow = document.createElementNS(svgNS, "path");
+    shadow.setAttribute("d", FINGER_SVG_PATH);
+    shadow.setAttribute("fill", "none");
+    shadow.setAttribute("stroke", "rgba(0,0,0,0.18)");
+    shadow.setAttribute("stroke-width", "2.2");
+    shadow.setAttribute("transform", "scale(1.03)");
+    g.appendChild(shadow);
+  }
+  const finger = document.createElementNS(svgNS, "path");
+  finger.setAttribute("d", FINGER_SVG_PATH);
+  finger.setAttribute("fill", "#000000");
+  finger.setAttribute("fill-rule", "nonzero");
+  finger.setAttribute("clip-rule", "nonzero");
+  finger.setAttribute("stroke", "#000000");
+  finger.setAttribute("stroke-width", withHalo ? "1.2" : "1");
+  finger.setAttribute("stroke-linejoin", "round");
+  finger.setAttribute("opacity", "0.98");
+  g.appendChild(finger);
+
+  const teamDot = document.createElementNS(svgNS, "circle");
+  teamDot.setAttribute("cx", String(FINGER_DOT_X));
+  teamDot.setAttribute("cy", String(FINGER_DOT_Y));
+  teamDot.setAttribute("r", withHalo ? "72" : "60");
+  teamDot.setAttribute("fill", color);
+  teamDot.setAttribute("stroke", "#000000");
+  teamDot.setAttribute("stroke-width", withHalo ? "8" : "6");
+  teamDot.setAttribute("opacity", "0.95");
+  g.appendChild(teamDot);
   return g;
 }
 
