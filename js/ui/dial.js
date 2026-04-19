@@ -11,6 +11,7 @@ const DIAL_DEG_MAX = 180;
 const DIAL_CAP_DEG = 10;
 const ACTIVE_DIAL_START = DIAL_DEG_MIN + DIAL_CAP_DEG; // 10
 const ACTIVE_DIAL_END = DIAL_DEG_MAX - DIAL_CAP_DEG; // 170
+const TARGET_RED = "#c62828";
 
 /** Map dial degree (0–180) along the semicircle (left = 0, right = 180). */
 function polar(cx, cy, R, degreeDial) {
@@ -42,10 +43,9 @@ export function renderDial(container, room, localPlayerUuid, onDialDegreeClick, 
   const ap = room.gameActivePlayer;
   const gs = room.gameState || "";
   const localTeam = teamForPlayer(room, localPlayerUuid);
-  const localIsPlaying = localTeam === "A" || localTeam === "B";
   const showTarget =
     (ap && localPlayerUuid && playerUuid(ap) === localPlayerUuid) ||
-    (gs === "STATE_04_REVEAL" && localIsPlaying);
+    gs === "STATE_04_REVEAL";
   const targetDeg =
     room.gameTargetDegree != null ? Number(room.gameTargetDegree) : NaN;
 
@@ -53,7 +53,7 @@ export function renderDial(container, room, localPlayerUuid, onDialDegreeClick, 
   const cy = 198;
   const R = 172;
   const guesses = Array.isArray(room.gameGuesses) ? room.gameGuesses : [];
-  const localRayColor = colorForTeam(localTeam);
+  const localRayColor = TARGET_RED;
 
   const svgNS = "http://www.w3.org/2000/svg";
   const svg = document.createElementNS(svgNS, "svg");
@@ -124,27 +124,32 @@ export function renderDial(container, room, localPlayerUuid, onDialDegreeClick, 
   svg.appendChild(baseBar);
 
   if (showTarget && !Number.isNaN(targetDeg)) {
+    // 2 points (widest), 3 points, 4 points (narrowest)
+    drawTargetZoneSector(svgNS, svg, cx, cy, R, targetDeg, 45, "#f3cc4b", "0.75");
+    drawTargetZoneSector(svgNS, svg, cx, cy, R, targetDeg, 27, "#e48a3a", "0.75");
+    drawTargetZoneSector(svgNS, svg, cx, cy, R, targetDeg, 9, "#8ec5ff", "0.75");
+
+    // Keep a centerline so the exact target midpoint is still readable.
     const t = gameToDialDeg(targetDeg);
-    const p = polar(cx, cy, R - 4, t);
+    const p = polar(cx, cy, R * 0.75, t);
     const needle = document.createElementNS(svgNS, "line");
     needle.setAttribute("x1", String(cx));
     needle.setAttribute("y1", String(cy));
     needle.setAttribute("x2", String(p.x));
     needle.setAttribute("y2", String(p.y));
-    needle.setAttribute("stroke", "var(--sp-primary)");
-    needle.setAttribute("stroke-width", "3");
+    needle.setAttribute("stroke", TARGET_RED);
+    needle.setAttribute("stroke-opacity", "1");
+    needle.setAttribute("stroke-width", "4");
     needle.setAttribute("stroke-linecap", "round");
     svg.appendChild(needle);
-
-    const bull = document.createElementNS(svgNS, "circle");
-    bull.setAttribute("cx", String(p.x));
-    bull.setAttribute("cy", String(p.y));
-    bull.setAttribute("r", "8");
-    bull.setAttribute("fill", "var(--sp-primary)");
-    bull.setAttribute("stroke", "#fff");
-    bull.setAttribute("stroke-width", "2");
-    svg.appendChild(bull);
   }
+
+  const centerDot = document.createElementNS(svgNS, "circle");
+  centerDot.setAttribute("cx", String(cx));
+  centerDot.setAttribute("cy", String(cy));
+  centerDot.setAttribute("r", "30");
+  centerDot.setAttribute("fill", TARGET_RED);
+  svg.appendChild(centerDot);
 
   if (room.gameState === "STATE_04_REVEAL") {
     const teamAAvg = averageTeamGuess(room, guesses, "A");
@@ -183,10 +188,10 @@ export function renderDial(container, room, localPlayerUuid, onDialDegreeClick, 
     if (!clickRay) {
       clickRay = document.createElementNS(svgNS, "line");
       clickRay.setAttribute("stroke", localRayColor);
+      clickRay.setAttribute("fill", "none");
+      clickRay.setAttribute("stroke-opacity", "1");
       clickRay.setAttribute("stroke-width", "2.75");
-      clickRay.setAttribute("stroke-linecap", "linear");
-      clickRay.setAttribute("opacity", "0.95");
-      clickRay.setAttribute("stroke-opacity", "0.65");
+      clickRay.setAttribute("stroke-linecap", "round");
       svg.appendChild(clickRay);
     }
     // Draw from edge to center so the outside arrowhead points inward.
@@ -335,6 +340,20 @@ function createWigglyTeamMarker(svgNS, tipX, tipY, centerX, centerY, color) {
   head.setAttribute("opacity", "0.98");
   g.appendChild(head);
   return g;
+}
+
+function drawTargetZoneSector(svgNS, svg, cx, cy, radius, targetGameDeg, spanGameDeg, color, opacity) {
+  const half = spanGameDeg / 2;
+  const startGame = Math.max(GAME_DEG_MIN, targetGameDeg - half);
+  const endGame = Math.min(GAME_DEG_MAX, targetGameDeg + half);
+  if (!(endGame > startGame)) return;
+  const startDial = ACTIVE_DIAL_START + startGame;
+  const endDial = ACTIVE_DIAL_START + endGame;
+  const sector = document.createElementNS(svgNS, "path");
+  sector.setAttribute("d", sectorPathD(cx, cy, radius, startDial, endDial));
+  sector.setAttribute("fill", color);
+  sector.setAttribute("fill-opacity", opacity);
+  svg.appendChild(sector);
 }
 
 function averageTeamGuess(room, guesses, team) {
