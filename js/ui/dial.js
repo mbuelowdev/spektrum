@@ -12,6 +12,7 @@ const DIAL_CAP_DEG = 10;
 const ACTIVE_DIAL_START = DIAL_DEG_MIN + DIAL_CAP_DEG; // 10
 const ACTIVE_DIAL_END = DIAL_DEG_MAX - DIAL_CAP_DEG; // 170
 const TARGET_RED = "#c62828";
+const CAP_BLUE = "#181a3c";
 
 /** Map dial degree (0–180) along the semicircle (left = 0, right = 180). */
 function polar(cx, cy, R, degreeDial) {
@@ -60,6 +61,7 @@ export function renderDial(container, room, localPlayerUuid, onDialDegreeClick, 
   svg.setAttribute("viewBox", "0 0 400 228");
   svg.setAttribute("class", "sp-dial-svg");
   svg.style.maxHeight = "260px";
+  const capClipId = `spCapClip-${Math.random().toString(36).slice(2, 10)}`;
 
   const defs = document.createElementNS(svgNS, "defs");
   const grad = document.createElementNS(svgNS, "linearGradient");
@@ -95,9 +97,10 @@ export function renderDial(container, room, localPlayerUuid, onDialDegreeClick, 
   defs.appendChild(rayArrow);
 
   defs.appendChild(grad);
+  defs.appendChild(createCapClipPath(svgNS, capClipId, cx, cy, R));
   svg.appendChild(defs);
 
-  const capColor = "var(--sp-text-muted)";
+  const capColor = CAP_BLUE;
 
   const leftCap = document.createElementNS(svgNS, "path");
   leftCap.setAttribute("d", sectorPathD(cx, cy, R, DIAL_DEG_MIN, ACTIVE_DIAL_START));
@@ -114,14 +117,16 @@ export function renderDial(container, room, localPlayerUuid, onDialDegreeClick, 
   rightCap.setAttribute("fill", capColor);
   svg.appendChild(rightCap);
 
+
   // Base bar under the whole semicircle, matching the grey wedge color.
   const baseBar = document.createElementNS(svgNS, "rect");
   baseBar.setAttribute("x", String((cx - R).toFixed(2)));
   baseBar.setAttribute("y", String(cy.toFixed(2)));
   baseBar.setAttribute("width", String((2 * R).toFixed(2)));
-  baseBar.setAttribute("height", "5");
+  baseBar.setAttribute("height", "12");
   baseBar.setAttribute("fill", capColor);
   svg.appendChild(baseBar);
+  svg.appendChild(createCapSprinkleLayer(svgNS, capClipId));
 
   if (showTarget && !Number.isNaN(targetDeg)) {
     // 2 points (widest), 3 points, 4 points (narrowest)
@@ -355,6 +360,48 @@ function drawTargetZoneSector(svgNS, svg, cx, cy, radius, targetGameDeg, spanGam
   sector.setAttribute("fill-opacity", opacity);
   svg.appendChild(sector);
 }
+
+function createCapClipPath(svgNS, clipId, cx, cy, R) {
+  const clip = document.createElementNS(svgNS, "clipPath");
+  clip.setAttribute("id", clipId);
+  const left = document.createElementNS(svgNS, "path");
+  left.setAttribute("d", sectorPathD(cx, cy, R, DIAL_DEG_MIN, ACTIVE_DIAL_START));
+  clip.appendChild(left);
+  const right = document.createElementNS(svgNS, "path");
+  right.setAttribute("d", sectorPathD(cx, cy, R, ACTIVE_DIAL_END, DIAL_DEG_MAX));
+  clip.appendChild(right);
+  const bar = document.createElementNS(svgNS, "rect");
+  bar.setAttribute("x", String((cx - R).toFixed(2)));
+  bar.setAttribute("y", String(cy.toFixed(2)));
+  bar.setAttribute("width", String((2 * R).toFixed(2)));
+  bar.setAttribute("height", "12");
+  clip.appendChild(bar);
+  return clip;
+}
+
+function createCapSprinkleLayer(svgNS, clipId) {
+  const g = document.createElementNS(svgNS, "g");
+  g.setAttribute("clip-path", `url(#${clipId})`);
+  let seed = 9371;
+  function rand() {
+    seed = (seed * 1664525 + 1013904223) >>> 0;
+    return seed / 4294967296;
+  }
+  for (let i = 0; i < 240; i++) {
+    const x = rand() * 400;
+    const y = rand() * 228;
+    const r = 0.75 + rand() * 0.65;
+    const alpha = 0.65 + rand() * 0.22;
+    const dot = document.createElementNS(svgNS, "circle");
+    dot.setAttribute("cx", String(x.toFixed(2)));
+    dot.setAttribute("cy", String(y.toFixed(2)));
+    dot.setAttribute("r", String(r.toFixed(2)));
+    dot.setAttribute("fill", `rgba(255, 255, 255, ${alpha.toFixed(2)})`);
+    g.appendChild(dot);
+  }
+  return g;
+}
+
 
 function averageTeamGuess(room, guesses, team) {
   const perPlayer = new Map();
