@@ -143,23 +143,36 @@ export function renderDial(container, room, localPlayerUuid, onDialDegreeClick, 
     svg.appendChild(bull);
   }
 
-  for (const g of guesses) {
-    const d = g.degree != null ? Number(g.degree) : NaN;
-    if (Number.isNaN(d)) continue;
-    const cc = gameToDialDeg(d);
-    const pt = polar(cx, cy, R + 4, cc);
-    if (g.isPreview) {
-      const previewColor = colorForTeam(teamForPlayer(room, playerUuid(g.player)));
-      const previewArrow = createPreviewArrow(svgNS, pt.x, pt.y, cx, cy, 20, previewColor);
-      svg.appendChild(previewArrow);
-      continue;
+  if (room.gameState === "STATE_04_REVEAL") {
+    const teamAAvg = averageTeamGuess(room, guesses, "A");
+    const teamBAvg = averageTeamGuess(room, guesses, "B");
+    if (Number.isFinite(teamAAvg)) {
+      const pt = polar(cx, cy, R + 4, gameToDialDeg(teamAAvg));
+      svg.appendChild(createWigglyTeamMarker(svgNS, pt.x, pt.y, cx, cy, colorForTeam("A")));
     }
-    const lockedColor = colorForTeam(teamForPlayer(room, playerUuid(g.player)));
-    const arrow = document.createElementNS(svgNS, "path");
-    arrow.setAttribute("d", inwardArrowHeadPath(pt.x, pt.y, cx, cy, 8));
-    arrow.setAttribute("fill", lockedColor);
-    arrow.setAttribute("opacity", "1");
-    svg.appendChild(arrow);
+    if (Number.isFinite(teamBAvg)) {
+      const pt = polar(cx, cy, R + 4, gameToDialDeg(teamBAvg));
+      svg.appendChild(createWigglyTeamMarker(svgNS, pt.x, pt.y, cx, cy, colorForTeam("B")));
+    }
+  } else {
+    for (const g of guesses) {
+      const d = g.degree != null ? Number(g.degree) : NaN;
+      if (Number.isNaN(d)) continue;
+      const cc = gameToDialDeg(d);
+      const pt = polar(cx, cy, R + 4, cc);
+      if (g.isPreview) {
+        const previewColor = colorForTeam(teamForPlayer(room, playerUuid(g.player)));
+        const previewArrow = createPreviewArrow(svgNS, pt.x, pt.y, cx, cy, 20, previewColor);
+        svg.appendChild(previewArrow);
+        continue;
+      }
+      const lockedColor = colorForTeam(teamForPlayer(room, playerUuid(g.player)));
+      const arrow = document.createElementNS(svgNS, "path");
+      arrow.setAttribute("d", inwardArrowHeadPath(pt.x, pt.y, cx, cy, 8));
+      arrow.setAttribute("fill", lockedColor);
+      arrow.setAttribute("opacity", "1");
+      svg.appendChild(arrow);
+    }
   }
 
   let clickRay = null;
@@ -280,6 +293,61 @@ function inwardArrowHeadPathCustom(tipX, tipY, centerX, centerY, length, wing) {
   const x2 = baseX - px * wing;
   const y2 = baseY - py * wing;
   return `M ${tipX.toFixed(2)} ${tipY.toFixed(2)} L ${x1.toFixed(2)} ${y1.toFixed(2)} L ${x2.toFixed(2)} ${y2.toFixed(2)} Z`;
+}
+
+function createWigglyTeamMarker(svgNS, tipX, tipY, centerX, centerY, color) {
+  const g = document.createElementNS(svgNS, "g");
+  const dx = centerX - tipX;
+  const dy = centerY - tipY;
+  const len = Math.hypot(dx, dy) || 1;
+  const ux = dx / len;
+  const uy = dy / len;
+  const px = -uy;
+  const py = ux;
+
+  const p0x = tipX - ux * 26;
+  const p0y = tipY - uy * 26;
+  const c1x = tipX - ux * 18 + px * 5;
+  const c1y = tipY - uy * 18 + py * 5;
+  const c2x = tipX - ux * 12 - px * 5;
+  const c2y = tipY - uy * 12 - py * 5;
+  const p1x = tipX - ux * 6;
+  const p1y = tipY - uy * 6;
+
+  const wiggle = document.createElementNS(svgNS, "path");
+  wiggle.setAttribute(
+    "d",
+    `M ${p0x.toFixed(2)} ${p0y.toFixed(2)} C ${c1x.toFixed(2)} ${c1y.toFixed(2)}, ${c2x.toFixed(2)} ${c2y.toFixed(2)}, ${p1x.toFixed(2)} ${p1y.toFixed(2)}`
+  );
+  wiggle.setAttribute("fill", "none");
+  wiggle.setAttribute("stroke", color);
+  wiggle.setAttribute("stroke-width", "3.2");
+  wiggle.setAttribute("stroke-linecap", "round");
+  wiggle.setAttribute("opacity", "0.95");
+  g.appendChild(wiggle);
+
+  const head = document.createElementNS(svgNS, "path");
+  head.setAttribute("d", inwardArrowHeadPathCustom(tipX, tipY, centerX, centerY, 9, 4.1));
+  head.setAttribute("fill", color);
+  head.setAttribute("opacity", "0.98");
+  g.appendChild(head);
+  return g;
+}
+
+function averageTeamGuess(room, guesses, team) {
+  const perPlayer = new Map();
+  for (const g of guesses) {
+    const uid = playerUuid(g.player);
+    if (!uid) continue;
+    if (teamForPlayer(room, uid) !== team) continue;
+    const d = g.degree != null ? Number(g.degree) : NaN;
+    if (!Number.isFinite(d)) continue;
+    perPlayer.set(uid, clampDeg(d));
+  }
+  if (!perPlayer.size) return NaN;
+  let sum = 0;
+  for (const v of perPlayer.values()) sum += v;
+  return sum / perPlayer.size;
 }
 
 function gameDegreeFromDialClick(cx, cy, x, y) {
