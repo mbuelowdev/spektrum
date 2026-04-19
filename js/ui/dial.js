@@ -32,8 +32,9 @@ function gameToDialDeg(gameDeg) {
  * @param {object} room
  * @param {string} localPlayerUuid
  * @param {(degree: number) => void} [onDialDegreeClick]
+ * @param {number | null} [localRayGameDegree]
  */
-export function renderDial(container, room, localPlayerUuid, onDialDegreeClick) {
+export function renderDial(container, room, localPlayerUuid, onDialDegreeClick, localRayGameDegree) {
   const card = room.gameActiveCard;
   const leftLabel = card && card.valueLeft ? card.valueLeft : "—";
   const rightLabel = card && card.valueRight ? card.valueRight : "—";
@@ -145,25 +146,27 @@ export function renderDial(container, room, localPlayerUuid, onDialDegreeClick) 
     if (Number.isNaN(d)) continue;
     const cc = gameToDialDeg(d);
     const pt = polar(cx, cy, R + 4, cc);
+    if (g.isPreview) {
+      const arrow = document.createElementNS(svgNS, "path");
+      arrow.setAttribute("d", inwardArrowHeadPath(pt.x, pt.y, cx, cy, 7));
+      arrow.setAttribute("fill", "var(--sp-primary)");
+      arrow.setAttribute("opacity", "0.95");
+      svg.appendChild(arrow);
+      continue;
+    }
     const dot = document.createElementNS(svgNS, "circle");
     dot.setAttribute("cx", String(pt.x));
     dot.setAttribute("cy", String(pt.y));
-    dot.setAttribute("r", g.isPreview ? "5" : "7");
-    dot.setAttribute("fill", g.isPreview ? "var(--sp-text-muted)" : "var(--sp-primary)");
-    dot.setAttribute("opacity", g.isPreview ? "0.55" : "1");
+    dot.setAttribute("r", "7");
+    dot.setAttribute("fill", "var(--sp-primary)");
+    dot.setAttribute("opacity", "1");
     dot.setAttribute("stroke", "#fff");
     dot.setAttribute("stroke-width", "1");
     svg.appendChild(dot);
   }
 
   let clickRay = null;
-  svg.style.cursor = "pointer";
-  svg.addEventListener("click", (ev) => {
-    const pt = svgPointFromEvent(svg, ev);
-    if (!pt) return;
-    const dialDeg = dialDegreeFromPoint(cx, cy, pt.x, pt.y);
-    const edge = polar(cx, cy, R, dialDeg);
-
+  function upsertClickRay(edgePoint) {
     if (!clickRay) {
       clickRay = document.createElementNS(svgNS, "line");
       clickRay.setAttribute("stroke", "var(--sp-primary)");
@@ -175,10 +178,25 @@ export function renderDial(container, room, localPlayerUuid, onDialDegreeClick) 
       svg.appendChild(clickRay);
     }
     // Draw from edge to center so the outside arrowhead points inward.
-    clickRay.setAttribute("x1", String(edge.x));
-    clickRay.setAttribute("y1", String(edge.y));
+    clickRay.setAttribute("x1", String(edgePoint.x));
+    clickRay.setAttribute("y1", String(edgePoint.y));
     clickRay.setAttribute("x2", String(cx));
     clickRay.setAttribute("y2", String(cy));
+  }
+
+  if (Number.isFinite(localRayGameDegree)) {
+    const persistedDialDeg = gameToDialDeg(Number(localRayGameDegree));
+    upsertClickRay(polar(cx, cy, R, persistedDialDeg));
+  }
+
+  svg.style.cursor = "pointer";
+  svg.addEventListener("click", (ev) => {
+    const pt = svgPointFromEvent(svg, ev);
+    if (!pt) return;
+    const dialDeg = dialDegreeFromPoint(cx, cy, pt.x, pt.y);
+    const edge = polar(cx, cy, R, dialDeg);
+
+    upsertClickRay(edge);
 
     if (typeof onDialDegreeClick !== "function") return;
     const gameDeg = gameDegreeFromDialClick(cx, cy, pt.x, pt.y);
@@ -207,6 +225,24 @@ function arcPathD(cx, cy, R, startDialDeg, endDialDeg) {
 function sectorPathD(cx, cy, outerR, startDialDeg, endDialDeg) {
   const outerArc = arcPathD(cx, cy, outerR, startDialDeg, endDialDeg);
   return `${outerArc} L ${cx.toFixed(2)} ${cy.toFixed(2)} Z`;
+}
+
+function inwardArrowHeadPath(tipX, tipY, centerX, centerY, size) {
+  const dx = centerX - tipX;
+  const dy = centerY - tipY;
+  const len = Math.hypot(dx, dy) || 1;
+  const ux = dx / len;
+  const uy = dy / len;
+  const px = -uy;
+  const py = ux;
+  const baseX = tipX - ux * size;
+  const baseY = tipY - uy * size;
+  const wing = size * 0.55;
+  const x1 = baseX + px * wing;
+  const y1 = baseY + py * wing;
+  const x2 = baseX - px * wing;
+  const y2 = baseY - py * wing;
+  return `M ${tipX.toFixed(2)} ${tipY.toFixed(2)} L ${x1.toFixed(2)} ${y1.toFixed(2)} L ${x2.toFixed(2)} ${y2.toFixed(2)} Z`;
 }
 
 function gameDegreeFromDialClick(cx, cy, x, y) {

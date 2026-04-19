@@ -28,6 +28,7 @@ import { showToast } from "./toast.js";
 export async function mountGame(root, roomUuid, player) {
   let room = await getRoom(roomUuid);
   let unsubMercure = null;
+  let localDialRayDegree = null;
 
   /** GET /room and repaint (covers missed Mercure or slow hub). */
   async function pullRoomFromServer(showError) {
@@ -159,17 +160,43 @@ export async function mountGame(root, roomUuid, player) {
     const dialMount = root.querySelector("#sp-dial");
     if (dialMount) {
       dialMount.innerHTML = "";
-      renderDial(dialMount, r, pl.localUuid, (degree) => {
+      renderDial(dialMount, r, pl.localUuid, async (degree) => {
+        localDialRayDegree = degree;
         const input = root.querySelector("#sp-actions .sp-deg");
         if (!input || !("value" in input)) return;
-        input.value = formatDialDegree(degree);
-      });
+        const value = formatDialDegree(degree);
+        input.value = value;
+        try {
+          await gameAction(r.uuid, pl.localUuid, "SUBMIT_PREVIEW_GUESS", value);
+        } catch (e) {
+          showToast(e.message || "Could not save preview", "danger");
+        }
+      }, localDialRayDegree);
     }
 
     const actions = root.querySelector("#sp-actions");
     if (actions) {
       actions.innerHTML = "";
-      renderActions(actions, r, pl);
+      renderActions(actions, r, pl, {
+        onPreviewRemoved: () => {
+          localDialRayDegree = null;
+          const dialMountNow = root.querySelector("#sp-dial");
+          if (!dialMountNow) return;
+          dialMountNow.innerHTML = "";
+          renderDial(dialMountNow, r, pl.localUuid, async (degree) => {
+            localDialRayDegree = degree;
+            const input = root.querySelector("#sp-actions .sp-deg");
+            if (!input || !("value" in input)) return;
+            const value = formatDialDegree(degree);
+            input.value = value;
+            try {
+              await gameAction(r.uuid, pl.localUuid, "SUBMIT_PREVIEW_GUESS", value);
+            } catch (e) {
+              showToast(e.message || "Could not save preview", "danger");
+            }
+          }, localDialRayDegree);
+        },
+      });
     }
 
     const hint = root.querySelector("#sp-state-hint");
@@ -293,7 +320,7 @@ function stateHint(room, pl) {
   return "";
 }
 
-function renderActions(container, room, pl) {
+function renderActions(container, room, pl, callbacks = {}) {
   const gs = room.gameState || "";
   const uid = pl.localUuid;
 
@@ -342,7 +369,7 @@ function renderActions(container, room, pl) {
   }
 
   if (gs === "STATE_02_GUESS_ROUND" || gs === "STATE_03_COUNTER_GUESS_ROUND") {
-    renderGuessRound(container, room, uid, gs);
+    renderGuessRound(container, room, uid, gs, callbacks);
     return;
   }
 
@@ -360,7 +387,7 @@ function renderActions(container, room, pl) {
   container.innerHTML = `<p class="text-muted small text-center">${escapeHtml(gs)}</p>`;
 }
 
-function renderGuessRound(container, room, uid, gs) {
+function renderGuessRound(container, room, uid, gs, callbacks = {}) {
   const team = findPlayerTeam(room, uid);
   const guessing =
     gs === "STATE_02_GUESS_ROUND"
@@ -436,6 +463,15 @@ function renderGuessRound(container, room, uid, gs) {
   removeBtn?.addEventListener("click", async () => {
     try {
       await gameAction(room.uuid, uid, "REMOVE_PREVIEW_GUESS", "-");
+      if (Array.isArray(room.gameGuesses)) {
+        room.gameGuesses = room.gameGuesses.filter((g) => {
+          if (!g || !g.isPreview || !g.player) return true;
+          return playerId(g.player) !== uid;
+        });
+      }
+      if (typeof callbacks.onPreviewRemoved === "function") {
+        callbacks.onPreviewRemoved();
+      }
       showToast("Preview removed", "success");
     } catch (e) {
       showToast(e.message || "Failed", "danger");
