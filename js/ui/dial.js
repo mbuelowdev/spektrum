@@ -150,11 +150,8 @@ export function renderDial(container, room, localPlayerUuid, onDialDegreeClick, 
     const pt = polar(cx, cy, R + 4, cc);
     if (g.isPreview) {
       const previewColor = colorForTeam(teamForPlayer(room, playerUuid(g.player)));
-      const arrow = document.createElementNS(svgNS, "path");
-      arrow.setAttribute("d", inwardArrowHeadPath(pt.x, pt.y, cx, cy, 24));
-      arrow.setAttribute("fill", previewColor);
-      arrow.setAttribute("opacity", "0.95");
-      svg.appendChild(arrow);
+      const previewArrow = createPreviewArrow(svgNS, pt.x, pt.y, cx, cy, 20, previewColor);
+      svg.appendChild(previewArrow);
       continue;
     }
     const lockedColor = colorForTeam(teamForPlayer(room, playerUuid(g.player)));
@@ -240,6 +237,44 @@ function inwardArrowHeadPath(tipX, tipY, centerX, centerY, size) {
   const baseX = tipX - ux * size;
   const baseY = tipY - uy * size;
   const wing = size * 0.55;
+  const x1 = baseX + px * wing;
+  const y1 = baseY + py * wing;
+  const x2 = baseX - px * wing;
+  const y2 = baseY - py * wing;
+  return `M ${tipX.toFixed(2)} ${tipY.toFixed(2)} L ${x1.toFixed(2)} ${y1.toFixed(2)} L ${x2.toFixed(2)} ${y2.toFixed(2)} Z`;
+}
+
+function createPreviewArrow(svgNS, tipX, tipY, centerX, centerY, size, color) {
+  const previewLength = size * 1.18;
+  const previewWing = size * 0.42;
+  const g = document.createElementNS(svgNS, "g");
+  const halo = document.createElementNS(svgNS, "path");
+  halo.setAttribute("d", inwardArrowHeadPathCustom(tipX, tipY, centerX, centerY, previewLength + 2, previewWing + 1.5));
+  halo.setAttribute("fill", "#ffffff");
+  halo.setAttribute("opacity", "0.92");
+  g.appendChild(halo);
+
+  const arrow = document.createElementNS(svgNS, "path");
+  arrow.setAttribute("d", inwardArrowHeadPathCustom(tipX, tipY, centerX, centerY, previewLength, previewWing));
+  arrow.setAttribute("fill", color);
+  arrow.setAttribute("stroke", "rgba(0,0,0,0.12)");
+  arrow.setAttribute("stroke-width", "0.8");
+  arrow.setAttribute("stroke-linejoin", "round");
+  arrow.setAttribute("opacity", "0.98");
+  g.appendChild(arrow);
+  return g;
+}
+
+function inwardArrowHeadPathCustom(tipX, tipY, centerX, centerY, length, wing) {
+  const dx = centerX - tipX;
+  const dy = centerY - tipY;
+  const len = Math.hypot(dx, dy) || 1;
+  const ux = dx / len;
+  const uy = dy / len;
+  const px = -uy;
+  const py = ux;
+  const baseX = tipX - ux * length;
+  const baseY = tipY - uy * length;
   const x1 = baseX + px * wing;
   const y1 = baseY + py * wing;
   const x2 = baseX - px * wing;
