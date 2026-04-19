@@ -127,6 +127,8 @@ export function renderDial(container, room, localPlayerUuid, onDialDegreeClick, 
   baseBar.setAttribute("fill", capColor);
   svg.appendChild(baseBar);
   svg.appendChild(createCapSprinkleLayer(svgNS, capClipId));
+  const previewRayLayer = document.createElementNS(svgNS, "g");
+  svg.appendChild(previewRayLayer);
 
   if (showTarget && !Number.isNaN(targetDeg)) {
     // 2 points (widest), 3 points, 4 points (narrowest)
@@ -134,19 +136,22 @@ export function renderDial(container, room, localPlayerUuid, onDialDegreeClick, 
     drawTargetZoneSector(svgNS, svg, cx, cy, R, targetDeg, 27, "#e48a3a", "0.75");
     drawTargetZoneSector(svgNS, svg, cx, cy, R, targetDeg, 9, "#8ec5ff", "0.75");
 
-    // Keep a centerline so the exact target midpoint is still readable.
-    const t = gameToDialDeg(targetDeg);
-    const p = polar(cx, cy, R * 0.75, t);
-    const needle = document.createElementNS(svgNS, "line");
-    needle.setAttribute("x1", String(cx));
-    needle.setAttribute("y1", String(cy));
-    needle.setAttribute("x2", String(p.x));
-    needle.setAttribute("y2", String(p.y));
-    needle.setAttribute("stroke", TARGET_RED);
-    needle.setAttribute("stroke-opacity", "1");
-    needle.setAttribute("stroke-width", "4");
-    needle.setAttribute("stroke-linecap", "round");
-    svg.appendChild(needle);
+  }
+
+  const avgGuessDeg = averageCurrentGuessingTeamGuess(room, guesses);
+  if (Number.isFinite(avgGuessDeg)) {
+    const t = gameToDialDeg(avgGuessDeg);
+    const p = polar(cx, cy, R * 0.70, t);
+    const avgRay = document.createElementNS(svgNS, "line");
+    avgRay.setAttribute("x1", String(cx));
+    avgRay.setAttribute("y1", String(cy));
+    avgRay.setAttribute("x2", String(p.x));
+    avgRay.setAttribute("y2", String(p.y));
+    avgRay.setAttribute("stroke", TARGET_RED);
+    avgRay.setAttribute("stroke-opacity", "1");
+    avgRay.setAttribute("stroke-width", "6");
+    avgRay.setAttribute("stroke-linecap", "round");
+    svg.appendChild(avgRay);
   }
 
   const centerDot = document.createElementNS(svgNS, "circle");
@@ -192,12 +197,12 @@ export function renderDial(container, room, localPlayerUuid, onDialDegreeClick, 
   function upsertClickRay(edgePoint) {
     if (!clickRay) {
       clickRay = document.createElementNS(svgNS, "line");
-      clickRay.setAttribute("stroke", localRayColor);
+      clickRay.setAttribute("stroke", "var(--sp-text-muted)");
       clickRay.setAttribute("fill", "none");
-      clickRay.setAttribute("stroke-opacity", "1");
+      clickRay.setAttribute("stroke-opacity", "0.25");
       clickRay.setAttribute("stroke-width", "2.75");
       clickRay.setAttribute("stroke-linecap", "round");
-      svg.appendChild(clickRay);
+      previewRayLayer.appendChild(clickRay);
     }
     // Draw from edge to center so the outside arrowhead points inward.
     clickRay.setAttribute("x1", String(edgePoint.x));
@@ -417,6 +422,32 @@ function averageTeamGuess(room, guesses, team) {
   let sum = 0;
   for (const v of perPlayer.values()) sum += v;
   return sum / perPlayer.size;
+}
+
+function averageCurrentGuessingTeamGuess(room, guesses) {
+  const gs = room && room.gameState ? String(room.gameState) : "";
+  if (
+    gs !== "STATE_02_GUESS_ROUND" &&
+    gs !== "STATE_03_COUNTER_GUESS_ROUND" &&
+    gs !== "STATE_04_REVEAL"
+  ) {
+    return NaN;
+  }
+  const first = firstGuessingTeamByRound(room);
+  const currentGuessingTeam =
+    gs === "STATE_03_COUNTER_GUESS_ROUND" || gs === "STATE_04_REVEAL"
+      ? counterTeamName(first)
+      : first;
+  return averageTeamGuess(room, guesses, currentGuessingTeam);
+}
+
+function firstGuessingTeamByRound(room) {
+  const idx = Number(room && room.gameRoundIndex != null ? room.gameRoundIndex : 0);
+  return Number.isFinite(idx) && idx % 2 !== 0 ? "B" : "A";
+}
+
+function counterTeamName(team) {
+  return team === "A" ? "B" : "A";
 }
 
 function gameDegreeFromDialClick(cx, cy, x, y) {
