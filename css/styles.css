@@ -15,9 +15,9 @@
   --sp-danger: #b54747;
   --sp-team-a: #f3eae4;
   --sp-team-b: #e9f0f4;
-  --sp-dial-1: #e8a87c;
-  --sp-dial-2: #d9d0c7;
-  --sp-dial-3: #8fa8bc;
+  --sp-dial-1: rgba(212, 141, 96, 0.68);
+  --sp-dial-2: rgba(212, 208, 202, 0.6);
+  --sp-dial-3: rgba(122, 153, 180, 0.68);
   --sp-radius: 0.5rem;
   --sp-dial-size: min(92vw, 420px);
 }

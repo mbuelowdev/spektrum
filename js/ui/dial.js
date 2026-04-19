@@ -61,43 +61,44 @@ export function renderDial(container, room, localPlayerUuid) {
   grad.setAttribute("y1", "0%");
   grad.setAttribute("x2", "100%");
   grad.setAttribute("y2", "0%");
-  [["0%", "var(--sp-dial-1)"], ["50%", "var(--sp-dial-2)"], ["100%", "var(--sp-dial-3)"]].forEach(
-    ([off, col]) => {
+  [
+    ["0%", "var(--sp-dial-1)", "0.28"],
+    ["50%", "var(--sp-dial-2)", "0.22"],
+    ["100%", "var(--sp-dial-3)", "0.28"],
+  ].forEach(([off, col, op]) => {
       const stop = document.createElementNS(svgNS, "stop");
       stop.setAttribute("offset", off);
-      stop.setAttribute("style", `stop-color:${col};stop-opacity:1`);
+      stop.setAttribute("style", `stop-color:${col};stop-opacity:${op}`);
       grad.appendChild(stop);
-    }
-  );
+    });
   defs.appendChild(grad);
   svg.appendChild(defs);
 
-  const trackWidth = "14";
   const capColor = "var(--sp-text-muted)";
 
   const leftCap = document.createElementNS(svgNS, "path");
-  leftCap.setAttribute("d", arcPathD(cx, cy, R, DIAL_DEG_MIN, ACTIVE_DIAL_START));
-  leftCap.setAttribute("fill", "none");
-  leftCap.setAttribute("stroke", capColor);
-  leftCap.setAttribute("stroke-width", trackWidth);
-  leftCap.setAttribute("stroke-linecap", "butt");
+  leftCap.setAttribute("d", sectorPathD(cx, cy, R, DIAL_DEG_MIN, ACTIVE_DIAL_START));
+  leftCap.setAttribute("fill", capColor);
   svg.appendChild(leftCap);
 
   const activeTrack = document.createElementNS(svgNS, "path");
-  activeTrack.setAttribute("d", arcPathD(cx, cy, R, ACTIVE_DIAL_START, ACTIVE_DIAL_END));
-  activeTrack.setAttribute("fill", "none");
-  activeTrack.setAttribute("stroke", "url(#spDialGrad)");
-  activeTrack.setAttribute("stroke-width", trackWidth);
-  activeTrack.setAttribute("stroke-linecap", "butt");
+  activeTrack.setAttribute("d", sectorPathD(cx, cy, R, ACTIVE_DIAL_START, ACTIVE_DIAL_END));
+  activeTrack.setAttribute("fill", "url(#spDialGrad)");
   svg.appendChild(activeTrack);
 
   const rightCap = document.createElementNS(svgNS, "path");
-  rightCap.setAttribute("d", arcPathD(cx, cy, R, ACTIVE_DIAL_END, DIAL_DEG_MAX));
-  rightCap.setAttribute("fill", "none");
-  rightCap.setAttribute("stroke", capColor);
-  rightCap.setAttribute("stroke-width", trackWidth);
-  rightCap.setAttribute("stroke-linecap", "butt");
+  rightCap.setAttribute("d", sectorPathD(cx, cy, R, ACTIVE_DIAL_END, DIAL_DEG_MAX));
+  rightCap.setAttribute("fill", capColor);
   svg.appendChild(rightCap);
+
+  // Base bar under the whole semicircle, matching the grey wedge color.
+  const baseBar = document.createElementNS(svgNS, "rect");
+  baseBar.setAttribute("x", String((cx - R).toFixed(2)));
+  baseBar.setAttribute("y", String(cy.toFixed(2)));
+  baseBar.setAttribute("width", String((2 * R).toFixed(2)));
+  baseBar.setAttribute("height", "5");
+  baseBar.setAttribute("fill", capColor);
+  svg.appendChild(baseBar);
 
   if (showTarget && !Number.isNaN(targetDeg)) {
     const t = gameToDialDeg(targetDeg);
@@ -155,6 +156,11 @@ function arcPathD(cx, cy, R, startDialDeg, endDialDeg) {
     d += (i === 0 ? "M " : " L ") + x.toFixed(2) + " " + y.toFixed(2);
   }
   return d;
+}
+
+function sectorPathD(cx, cy, outerR, startDialDeg, endDialDeg) {
+  const outerArc = arcPathD(cx, cy, outerR, startDialDeg, endDialDeg);
+  return `${outerArc} L ${cx.toFixed(2)} ${cy.toFixed(2)} Z`;
 }
 
 function clampDeg(d) {
