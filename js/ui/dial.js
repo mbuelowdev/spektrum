@@ -40,8 +40,12 @@ export function renderDial(container, room, localPlayerUuid, onDialDegreeClick, 
   const rightLabel = card && card.valueRight ? card.valueRight : "—";
 
   const ap = room.gameActivePlayer;
+  const gs = room.gameState || "";
+  const localTeam = teamForPlayer(room, localPlayerUuid);
+  const localIsPlaying = localTeam === "A" || localTeam === "B";
   const showTarget =
-    ap && localPlayerUuid && playerUuid(ap) === localPlayerUuid;
+    (ap && localPlayerUuid && playerUuid(ap) === localPlayerUuid) ||
+    (gs === "STATE_04_REVEAL" && localIsPlaying);
   const targetDeg =
     room.gameTargetDegree != null ? Number(room.gameTargetDegree) : NaN;
 
@@ -49,7 +53,6 @@ export function renderDial(container, room, localPlayerUuid, onDialDegreeClick, 
   const cy = 198;
   const R = 172;
   const guesses = Array.isArray(room.gameGuesses) ? room.gameGuesses : [];
-  const localTeam = teamForPlayer(room, localPlayerUuid);
   const localRayColor = colorForTeam(localTeam);
 
   const svgNS = "http://www.w3.org/2000/svg";
