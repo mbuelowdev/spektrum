@@ -86,6 +86,7 @@ export async function mountGame(root, roomUuid, player) {
             <div class="mx-auto sp-dial-wrap">
               <div id="sp-clue" class="sp-clue-box text-muted"></div>
               <div id="sp-dial"></div>
+              <div id="sp-admin-start" class="mt-3 w-100"></div>
             </div>
             <div id="sp-actions" class="mt-3 mx-auto" style="max-width: 420px"></div>
             <p class="text-center text-muted small mt-2 mb-0" id="sp-state-hint"></p>
@@ -173,6 +174,23 @@ export async function mountGame(root, roomUuid, player) {
           }
         : undefined;
       renderDial(dialMount, r, pl.localUuid, dialClickHandler, localDialRayDegree);
+    }
+
+    const startWrap = root.querySelector("#sp-admin-start");
+    if (startWrap) {
+      if (storage.isRoomCreator(roomUuid) && canSwitchTeam(r)) {
+        startWrap.innerHTML = `<button type="button" class="btn btn-primary w-100" id="sp-btn-start-game">Start game</button>`;
+        startWrap.querySelector("#sp-btn-start-game")?.addEventListener("click", async () => {
+          try {
+            await gameAction(r.uuid || roomUuid, pl.localUuid, "CREATE_NEW_GAME", "-");
+            showToast("Game started", "success");
+          } catch (e) {
+            showToast(e.message || "Could not start game", "danger");
+          }
+        });
+      } else {
+        startWrap.innerHTML = "";
+      }
     }
 
     const actions = root.querySelector("#sp-actions");
