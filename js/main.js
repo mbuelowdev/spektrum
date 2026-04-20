@@ -306,7 +306,7 @@ function createRoomModal() {
             <div class="modal-body">
               <label class="form-label small">Room name</label>
               <input type="text" class="form-control mb-3 sp-cr-name" maxlength="80" value="${escapeAttr(suggestedRoomName)}" />
-              <div class="form-check form-switch mb-2">
+              <div class="form-check form-switch mb-2 sp-private-switch">
                 <input class="form-check-input sp-cr-private-toggle" type="checkbox" role="switch" id="sp-cr-private-toggle" />
                 <label class="form-check-label small d-inline-flex align-items-center gap-1 position-relative pe-3" for="sp-cr-private-toggle">
                   Private room

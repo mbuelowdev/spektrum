@@ -287,3 +287,19 @@ a:hover {
     margin-top: 1rem !important;
   }
 }
+
+/* Create-room private toggle: slate themed switch */
+.sp-private-switch .form-check-input {
+  background-color: #cbd5e1;
+  border-color: #94a3b8;
+}
+
+.sp-private-switch .form-check-input:checked {
+  background-color: var(--sp-primary);
+  border-color: var(--sp-primary);
+}
+
+.sp-private-switch .form-check-input:focus {
+  border-color: var(--sp-primary);
+  box-shadow: 0 0 0 0.25rem rgba(71, 85, 105, 0.28);
+}
