@@ -151,7 +151,7 @@ a:hover {
     0 5px 0 #164fa5,
     0 6px 0 #134591,
     0 8px 15px rgba(13, 43, 88, 0.4);
-  transform: translateY(-0.42rem) rotate(-1.2deg) skewY(-2.8deg);
+  transform: translateY(-0.85rem) rotate(-1.2deg) skewY(-2.8deg);
 }
 
 @media (max-width: 575.98px) {
