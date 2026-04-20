@@ -126,16 +126,16 @@ a:hover {
   line-height: 0.95;
   font-style: normal;
   text-transform: none;
-  color: #f4f9ff;
+  color: #f8fafc;
   background: none;
-  -webkit-text-fill-color: #f4f9ff;
-  -webkit-text-stroke: 1.8px #145bc5;
+  -webkit-text-fill-color: #f8fafc;
+  -webkit-text-stroke: 1.8px #334155;
   transform: skewX(-10deg) rotate(-0.9deg);
   text-shadow:
-    -2px 1px 0 #0c3482,
-    -3px 2px 0 #0c3482,
-    -4px 3px 0 #0c3482,
-    -5px 4px 0 #0c3482,
+    -2px 1px 0 #1e293b,
+    -3px 2px 0 #1e293b,
+    -4px 3px 0 #1e293b,
+    -5px 4px 0 #1e293b,
     0 1px 0 rgba(255, 255, 255, 0.25);
 }
 
@@ -144,7 +144,7 @@ a:hover {
   position: absolute;
   inset: 0.03em -0.015em -0.015em;
   z-index: -1;
-  background: #2f65cc;
+  background: #475569;
   transform: skewX(-7deg) rotate(-0.8deg);
 }
 
