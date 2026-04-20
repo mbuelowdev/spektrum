@@ -300,7 +300,7 @@ function sidebarHtml(room, pl) {
     <div class="d-flex flex-wrap gap-2 gap-sm-3 justify-content-between align-items-center small text-muted mb-2">
       <span class="text-nowrap">Round ${(Number(room.gameRoundIndex) || 0) + 1}</span>
     </div>
-    <p class="small text-muted mb-0">State: ${escapeHtml(room.gameState || "—")}</p>
+    <p class="small text-muted mb-0 sp-sidebar-game-state">State: ${escapeHtml(room.gameState || "—")}</p>
   `;
 }
 

@@ -32,6 +32,8 @@ body {
   background-color: var(--sp-page-bg);
   color: var(--sp-text);
   line-height: 1.5;
+  /* Temporary: preview Limelight as app-wide default (revert by removing this line). */
+  font-family: "Limelight", sans-serif;
 }
 
 .sp-body {
@@ -208,7 +210,22 @@ a:hover {
   font-weight: 700;
   letter-spacing: 0;
   color: var(--sp-text);
+  font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Room list timestamps — readable sans against Limelight UI default */
+.sp-room-row small {
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+.sp-sidebar-game-state {
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+#toast-container .toast {
+  font-family: Arial, Helvetica, sans-serif;
+}
+
 .sp-player {
   font-size: 0.95rem;
   padding: 0.2rem 0;
