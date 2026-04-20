@@ -258,6 +258,26 @@ a:hover {
 .sp-topbar .sp-room-title {
   position: relative;
   top: 3px;
+  margin-left: 0.25rem;
+  padding-left: 0.85rem;
+}
+
+.sp-topbar .sp-room-title::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.06em;
+  bottom: 0.12em;
+  width: 1px;
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    color-mix(in srgb, var(--sp-border) 92%, var(--sp-text) 8%) 18%,
+    color-mix(in srgb, var(--sp-border) 92%, var(--sp-text) 8%) 82%,
+    transparent
+  );
+  border-radius: 1px;
+  pointer-events: none;
 }
 
 /* Layout: game */
