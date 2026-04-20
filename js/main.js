@@ -202,16 +202,22 @@ function confirmJoinModal(roomUuid, errorHint = "") {
             <div class="modal-header">
               <h5 class="modal-title">Join room?</h5>
             </div>
-            <div class="modal-body">
+            <form class="modal-body sp-join-form">
               ${errorHint ? `<div class="alert alert-danger py-2 small">${escapeHtml(errorHint)}</div>` : ""}
               <p class="small text-muted mb-2 font-monospace">${escapeHtml(roomUuid)}</p>
               <label class="form-label small">Room password (if any)</label>
-              <input type="password" class="form-control mb-3 sp-join-pw" autocomplete="current-password" />
+              <input
+                type="password"
+                class="form-control mb-3 sp-join-pw"
+                autocomplete="new-password"
+                data-lpignore="true"
+                data-1p-ignore="true"
+              />
               <div class="d-grid gap-2">
-                <button type="button" class="btn btn-primary sp-join-yes">Join</button>
+                <button type="submit" class="btn btn-primary sp-join-yes">Join</button>
                 <button type="button" class="btn btn-outline-secondary sp-join-no">Cancel</button>
               </div>
-            </div>
+            </form>
           </div>
         </div>
       </div>`;
@@ -219,13 +225,25 @@ function confirmJoinModal(roomUuid, errorHint = "") {
     const el = wrap.querySelector(".modal");
     const modal = new bootstrap.Modal(el);
     modal.show();
+    el.addEventListener(
+      "shown.bs.modal",
+      () => {
+        const pwEl = /** @type {HTMLInputElement | null} */ (
+          wrap.querySelector(".sp-join-pw")
+        );
+        pwEl?.focus();
+        pwEl?.select();
+      },
+      { once: true }
+    );
 
     const finish = (payload) => {
       modal.hide();
       resolve(payload);
     };
 
-    wrap.querySelector(".sp-join-yes")?.addEventListener("click", () => {
+    wrap.querySelector(".sp-join-form")?.addEventListener("submit", (e) => {
+      e.preventDefault();
       const pwEl = /** @type {HTMLInputElement} */ (
         wrap.querySelector(".sp-join-pw")
       );
@@ -247,7 +265,8 @@ function confirmJoinModal(roomUuid, errorHint = "") {
 async function handleCreateRoom() {
   const createInput = await createRoomModal();
   if (createInput === null) return;
-  const { password, name } = createInput;
+  const { name } = createInput;
+  const password = createInput.isPrivate ? createInput.password : undefined;
 
   try {
     const created = await api.createRoom(password, name);
@@ -261,7 +280,7 @@ async function handleCreateRoom() {
     }
     storage.addCreatedRoom(rid);
     storage.setRoomName(rid, name);
-    await api.joinRoom(rid, storage.getPlayerUuid(), password || "");
+    await api.joinRoom(rid, storage.getPlayerUuid(), password);
     storage.touchRoom(rid, name);
     navigateToRoom(rid);
   } catch (e) {
@@ -269,7 +288,7 @@ async function handleCreateRoom() {
   }
 }
 
-/** @returns {Promise<{ password: string, name: string } | null>} */
+/** @returns {Promise<{ password?: string, name: string, isPrivate: boolean } | null>} */
 function createRoomModal() {
   return new Promise((resolve) => {
     let settled = false;
@@ -287,8 +306,23 @@ function createRoomModal() {
             <div class="modal-body">
               <label class="form-label small">Room name</label>
               <input type="text" class="form-control mb-3 sp-cr-name" maxlength="80" value="${escapeAttr(suggestedRoomName)}" />
-              <label class="form-label small">Optional password</label>
-              <input type="password" class="form-control mb-3 sp-cr-pw" autocomplete="new-password" />
+              <div class="form-check form-switch mb-2">
+                <input class="form-check-input sp-cr-private-toggle" type="checkbox" role="switch" id="sp-cr-private-toggle" />
+                <label class="form-check-label small d-inline-flex align-items-center gap-1 position-relative pe-3" for="sp-cr-private-toggle">
+                  Private room
+                  <span
+                    class="d-inline-flex align-items-center justify-content-center rounded-circle border border-secondary text-secondary"
+                    style="width: 1rem; height: 1rem; font-size: 0.7rem; line-height: 1;"
+                    title="Only people with the password will be able to join the room."
+                    aria-label="Only people with the password will be able to join the room."
+                    >?</span
+                  >
+                </label>
+              </div>
+              <div class="sp-cr-pw-wrap d-none mb-3">
+                <label class="form-label small" for="sp-cr-pw">Password</label>
+                <input type="password" id="sp-cr-pw" class="form-control sp-cr-pw" autocomplete="new-password" />
+              </div>
               <div class="d-flex gap-2 justify-content-end">
                 <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
                 <button type="button" class="btn btn-primary sp-cr-go">Create</button>
@@ -300,8 +334,32 @@ function createRoomModal() {
     document.body.appendChild(wrap);
     const el = wrap.querySelector(".modal");
     const modal = new bootstrap.Modal(el);
+    const privateToggle = /** @type {HTMLInputElement} */ (
+      wrap.querySelector(".sp-cr-private-toggle")
+    );
+    const passwordWrap = /** @type {HTMLDivElement} */ (
+      wrap.querySelector(".sp-cr-pw-wrap")
+    );
+    const passwordInput = /** @type {HTMLInputElement} */ (
+      wrap.querySelector(".sp-cr-pw")
+    );
 
-    const finish = (/** @type {{ password: string, name: string } | null} */ v) => {
+    const syncPrivateRoomUi = () => {
+      const isPrivate = Boolean(privateToggle?.checked);
+      passwordWrap.classList.toggle("d-none", !isPrivate);
+      passwordInput.required = isPrivate;
+      if (!isPrivate) {
+        passwordInput.value = "";
+        passwordInput.setCustomValidity("");
+      }
+    };
+    privateToggle?.addEventListener("change", syncPrivateRoomUi);
+    passwordInput.addEventListener("input", () => {
+      passwordInput.setCustomValidity("");
+    });
+    syncPrivateRoomUi();
+
+    const finish = (/** @type {{ password?: string, name: string, isPrivate: boolean } | null} */ v) => {
       if (settled) return;
       settled = true;
       modal.hide();
@@ -309,9 +367,6 @@ function createRoomModal() {
     };
 
     wrap.querySelector(".sp-cr-go")?.addEventListener("click", () => {
-      const password =
-        /** @type {HTMLInputElement} */ (wrap.querySelector(".sp-cr-pw")).value ||
-        "";
       const roomNameInput = /** @type {HTMLInputElement} */ (wrap.querySelector(".sp-cr-name"));
       const roomName = storage.normalizeRoomName(roomNameInput?.value || "");
       if (!roomName) {
@@ -320,7 +375,19 @@ function createRoomModal() {
         return;
       }
       roomNameInput.setCustomValidity("");
-      finish({ password, name: roomName });
+      const isPrivate = Boolean(privateToggle?.checked);
+      const password = (passwordInput.value || "").trim();
+      if (isPrivate && password === "") {
+        passwordInput.setCustomValidity("Please set a room password.");
+        passwordInput.reportValidity();
+        return;
+      }
+      passwordInput.setCustomValidity("");
+      finish({
+        ...(isPrivate ? { password } : {}),
+        name: roomName,
+        isPrivate,
+      });
     });
 
     el.addEventListener(
