@@ -61,8 +61,8 @@ export async function mountGame(root, roomUuid, player) {
             <line x1="4" y1="18" x2="20" y2="18" />
           </svg>
         </button>
-        <span class="sp-app-title me-2">Spektrum</span>
-        <span class="navbar-brand mb-0 text-truncate small" title="${escapeAttr(roomData.uuid || "")}">${escapeHtml(displayName)}</span>
+        <a class="sp-app-title me-2 text-decoration-none" href="/" aria-label="Go to home">Spektrum</a>
+        <span class="navbar-brand mb-0 text-truncate small sp-room-title" title="${escapeAttr(roomData.uuid || "")}">${escapeHtml(displayName)}</span>
         <div class="ms-auto d-flex align-items-center gap-2">
           <span class="small text-muted sp-topbar-player">You are: ${escapeHtml(pl.localName || "Player")}</span>
           <div class="dropdown">
