@@ -27,28 +27,83 @@ export function clearPlayer() {
   localStorage.removeItem(P + "playerName");
 }
 
-/** @returns {{ roomUuid: string, joinedAt: string }[]} */
+export function normalizeRoomName(name) {
+  const raw = String(name ?? "");
+  const noTags = raw.replace(/<[^>]*>/g, "");
+  const noCtl = noTags.replace(/[\u0000-\u001F\u007F]/g, "");
+  const compact = noCtl.replace(/\s+/g, " ").trim();
+  return compact.slice(0, 80);
+}
+
+/** @returns {{ roomUuid: string, joinedAt: string, roomName?: string }[]} */
 export function getLastRooms() {
   try {
     const raw = localStorage.getItem(P + "lastRooms");
     if (!raw) return [];
     const arr = JSON.parse(raw);
-    return Array.isArray(arr) ? arr : [];
+    if (!Array.isArray(arr)) return [];
+    const roomNames = getRoomNames();
+    return arr
+      .filter((entry) => entry && typeof entry.roomUuid === "string")
+      .map((entry) => {
+        const roomUuid = String(entry.roomUuid);
+        const fallbackName = roomNames[roomUuid] || "";
+        const roomName = normalizeRoomName(entry.roomName || fallbackName);
+        return {
+          roomUuid,
+          joinedAt: String(entry.joinedAt || ""),
+          ...(roomName ? { roomName } : {}),
+        };
+      });
   } catch {
     return [];
   }
 }
 
-/** @param {{ roomUuid: string, joinedAt: string }[]} rooms */
+/** @param {{ roomUuid: string, joinedAt: string, roomName?: string }[]} rooms */
 export function setLastRooms(rooms) {
   localStorage.setItem(P + "lastRooms", JSON.stringify(rooms.slice(0, 50)));
 }
 
-export function touchRoom(roomUuid) {
+export function getRoomNames() {
+  try {
+    const raw = localStorage.getItem(P + "roomNames");
+    if (!raw) return {};
+    const obj = JSON.parse(raw);
+    if (!obj || typeof obj !== "object") return {};
+    return Object.fromEntries(
+      Object.entries(obj)
+        .filter(([k, v]) => typeof k === "string" && typeof v === "string")
+        .map(([k, v]) => [k, normalizeRoomName(v)])
+    );
+  } catch {
+    return {};
+  }
+}
+
+export function getRoomName(roomUuid) {
+  return getRoomNames()[roomUuid] || "";
+}
+
+export function setRoomName(roomUuid, name) {
+  const roomName = normalizeRoomName(name);
+  if (!roomUuid || !roomName) return;
+  const names = getRoomNames();
+  names[roomUuid] = roomName;
+  localStorage.setItem(P + "roomNames", JSON.stringify(names));
+}
+
+export function touchRoom(roomUuid, roomName = "") {
+  const normalizedName = normalizeRoomName(roomName);
+  if (normalizedName) {
+    setRoomName(roomUuid, normalizedName);
+  }
+  const savedName = normalizedName || getRoomName(roomUuid);
   const list = getLastRooms().filter((r) => r.roomUuid !== roomUuid);
   list.unshift({
     roomUuid,
     joinedAt: new Date().toISOString(),
+    ...(savedName ? { roomName: savedName } : {}),
   });
   setLastRooms(list);
 }

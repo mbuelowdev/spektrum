@@ -55,8 +55,11 @@ export async function heartbeat(playerUuid) {
   });
 }
 
-export async function createRoom(password = "") {
-  const body = password ? { password } : {};
+export async function createRoom(password = "", name = "") {
+  const body = {
+    ...(password ? { password } : {}),
+    ...(name ? { name } : {}),
+  };
   return apiFetch("/room/create", {
     method: "POST",
     body: JSON.stringify(body),

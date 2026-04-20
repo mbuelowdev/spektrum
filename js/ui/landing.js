@@ -10,7 +10,7 @@ function sortRooms(rooms) {
  * @param {HTMLElement} root
  * @param {{
  *   playerName: string;
- *   rooms: { roomUuid: string; joinedAt: string }[];
+ *   rooms: { roomUuid: string; joinedAt: string; roomName?: string }[];
  *   onCreateRoom: () => void | Promise<void>;
  * }} opts
  */
@@ -23,7 +23,7 @@ export function renderLanding(root, opts) {
         .map(
           (r) => `
       <button type="button" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center sp-room-row" data-room="${escapeAttr(r.roomUuid)}">
-        <span class="text-truncate me-2 font-monospace small">${escapeHtml(r.roomUuid)}</span>
+        <span class="text-truncate me-2">${escapeHtml(r.roomName || r.roomUuid)}</span>
         <small class="text-muted text-nowrap">${formatDate(r.joinedAt)}</small>
       </button>`
         )

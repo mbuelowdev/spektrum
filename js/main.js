@@ -177,9 +177,9 @@ async function enterRoomFlow(app, roomUuid) {
       }
     }
     room = await api.getRoom(roomUuid);
-    storage.touchRoom(roomUuid);
+    storage.touchRoom(roomUuid, getRoomDisplayName(room));
   } else {
-    storage.touchRoom(roomUuid);
+    storage.touchRoom(roomUuid, getRoomDisplayName(room));
   }
 
   gameCleanup = await mountGame(app, roomUuid, {
@@ -245,11 +245,12 @@ function confirmJoinModal(roomUuid, errorHint = "") {
 }
 
 async function handleCreateRoom() {
-  const pw = await createRoomModal();
-  if (pw === null) return;
+  const createInput = await createRoomModal();
+  if (createInput === null) return;
+  const { password, name } = createInput;
 
   try {
-    const created = await api.createRoom(pw);
+    const created = await api.createRoom(password, name);
     const rid =
       created.uuid ||
       created.id ||
@@ -259,18 +260,21 @@ async function handleCreateRoom() {
       return;
     }
     storage.addCreatedRoom(rid);
-    await api.joinRoom(rid, storage.getPlayerUuid(), pw || "");
-    storage.touchRoom(rid);
+    storage.setRoomName(rid, name);
+    await api.joinRoom(rid, storage.getPlayerUuid(), password || "");
+    storage.touchRoom(rid, name);
     navigateToRoom(rid);
   } catch (e) {
     showToast(e.message || "Create failed", "danger");
   }
 }
 
-/** @returns {Promise<string | null>} password string (may be empty) or null if cancelled */
+/** @returns {Promise<{ password: string, name: string } | null>} */
 function createRoomModal() {
   return new Promise((resolve) => {
     let settled = false;
+    const fallbackPlayerName = storage.getPlayerName() || "Player";
+    const suggestedRoomName = storage.normalizeRoomName(`${fallbackPlayerName}'s room`);
     const wrap = document.createElement("div");
     wrap.innerHTML = `
       <div class="modal fade" tabindex="-1">
@@ -281,6 +285,8 @@ function createRoomModal() {
               <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cancel"></button>
             </div>
             <div class="modal-body">
+              <label class="form-label small">Room name</label>
+              <input type="text" class="form-control mb-3 sp-cr-name" maxlength="80" value="${escapeAttr(suggestedRoomName)}" />
               <label class="form-label small">Optional password</label>
               <input type="password" class="form-control mb-3 sp-cr-pw" autocomplete="new-password" />
               <div class="d-flex gap-2 justify-content-end">
@@ -295,7 +301,7 @@ function createRoomModal() {
     const el = wrap.querySelector(".modal");
     const modal = new bootstrap.Modal(el);
 
-    const finish = (/** @type {string | null} */ v) => {
+    const finish = (/** @type {{ password: string, name: string } | null} */ v) => {
       if (settled) return;
       settled = true;
       modal.hide();
@@ -303,10 +309,18 @@ function createRoomModal() {
     };
 
     wrap.querySelector(".sp-cr-go")?.addEventListener("click", () => {
-      const v =
+      const password =
         /** @type {HTMLInputElement} */ (wrap.querySelector(".sp-cr-pw")).value ||
         "";
-      finish(v);
+      const roomNameInput = /** @type {HTMLInputElement} */ (wrap.querySelector(".sp-cr-name"));
+      const roomName = storage.normalizeRoomName(roomNameInput?.value || "");
+      if (!roomName) {
+        roomNameInput.setCustomValidity("Please enter a room name.");
+        roomNameInput.reportValidity();
+        return;
+      }
+      roomNameInput.setCustomValidity("");
+      finish({ password, name: roomName });
     });
 
     el.addEventListener(
@@ -322,10 +336,20 @@ function createRoomModal() {
   });
 }
 
+function getRoomDisplayName(room) {
+  return storage.normalizeRoomName(
+    (room && (room.name || room.roomName || room.Name)) || ""
+  );
+}
+
 function escapeHtml(s) {
   const d = document.createElement("div");
   d.textContent = s ?? "";
   return d.innerHTML;
+}
+
+function escapeAttr(s) {
+  return String(s ?? "").replace(/"/g, "&quot;");
 }
 
 void boot();

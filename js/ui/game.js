@@ -34,7 +34,7 @@ export async function mountGame(root, roomUuid, player) {
   async function pullRoomFromServer(showError) {
     try {
       room = await getRoom(roomUuid);
-      storage.touchRoom(roomUuid);
+      storage.touchRoom(roomUuid, roomDisplayName(room));
       updateContent(room, player);
     } catch (e) {
       if (showError) {
@@ -50,7 +50,7 @@ export async function mountGame(root, roomUuid, player) {
   }
 
   function renderShell(roomData, pl, isAdmin) {
-    const shortId = shortUuid(roomData.uuid || roomUuid);
+    const displayName = roomDisplayName(roomData) || (roomData.uuid || roomUuid);
 
     root.innerHTML = `
       <nav class="navbar navbar-expand sp-topbar px-2 px-md-3 py-2 align-items-center shadow-sm">
@@ -62,7 +62,7 @@ export async function mountGame(root, roomUuid, player) {
           </svg>
         </button>
         <span class="sp-app-title me-2">Spektrum</span>
-        <span class="navbar-brand mb-0 text-truncate small font-monospace" title="${escapeAttr(roomData.uuid || "")}">Room ${escapeHtml(roomData.uuid || roomUuid)}</span>
+        <span class="navbar-brand mb-0 text-truncate small" title="${escapeAttr(roomData.uuid || "")}">${escapeHtml(displayName)}</span>
         <div class="ms-auto d-flex align-items-center gap-2">
           <span class="small text-muted sp-topbar-player">You are: ${escapeHtml(pl.localName || "Player")}</span>
           <div class="dropdown">
@@ -244,7 +244,7 @@ export async function mountGame(root, roomUuid, player) {
 
   unsubMercure = subscribeRoom(roomUuid, (incoming) => {
     room = incoming;
-    storage.touchRoom(roomUuid);
+    storage.touchRoom(roomUuid, roomDisplayName(room));
     updateContent(room, player);
   });
 
@@ -579,6 +579,12 @@ function wireActs(container, room, uid) {
       }
     });
   });
+}
+
+function roomDisplayName(room) {
+  return storage.normalizeRoomName(
+    (room && (room.name || room.roomName || room.Name)) || ""
+  );
 }
 
 function shortUuid(uuid) {
