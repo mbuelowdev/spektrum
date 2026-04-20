@@ -4,13 +4,7 @@ on:
     workflow_dispatch:
     push:
         branches: [ 'master' ]
-        paths:
-            - 'deployment.json'
-            - 'Dockerfile'
-            - 'nginx.conf'
-            - 'index.html'
-            - 'css/**'
-            - 'js/**'
+        paths: [ 'deployment.json' ]
 
 jobs:
     build-and-deploy:
