@@ -64,7 +64,7 @@ export async function mountGame(root, roomUuid, player) {
         <a class="sp-app-title sp-app-title-home me-3 text-decoration-none" href="/" aria-label="Go to home">Spektrum</a>
         <span class="navbar-brand mb-0 text-truncate sp-room-title" title="${escapeAttr(roomData.uuid || "")}">${escapeHtml(displayName)}</span>
         <div class="ms-auto d-flex align-items-center gap-2">
-          <span class="small text-muted sp-topbar-player">You are: ${escapeHtml(pl.localName || "Player")}</span>
+          <span class="small text-muted sp-topbar-player"><span class="sp-topbar-player-label">You are:</span> <span class="sp-topbar-player-name">${escapeHtml(pl.localName || "Player")}</span></span>
           <div class="dropdown">
             <button class="btn btn-light border btn-sm" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Menu">⋯</button>
             <ul class="dropdown-menu dropdown-menu-end">

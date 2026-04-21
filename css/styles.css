@@ -258,6 +258,11 @@ a:hover {
   font-family: Arial, Helvetica, sans-serif;
 }
 
+.sp-topbar .dropdown-menu,
+.sp-topbar .dropdown-item {
+  font-family: Arial, Helvetica, sans-serif;
+}
+
 .sp-player {
   font-size: 0.95rem;
   padding: 0.2rem 0;
@@ -283,6 +288,10 @@ a:hover {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.sp-topbar-player-label {
+  font-family: Arial, Helvetica, sans-serif;
 }
 
 .sp-room-title {
