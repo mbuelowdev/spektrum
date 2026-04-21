@@ -1,51 +1,7 @@
 const P = "spektrum.";
-const THEME_KEY = P + "theme";
 const AVATAR_KEY = P + "avatar";
 const VOLUME_KEY = P + "volume";
 const BG_MUSIC_KEY = P + "bgMusic";
-
-/**
- * @param {string} theme
- * @returns {theme is 'light' | 'dark'}
- */
-function isSupportedTheme(theme) {
-  return theme === "light" || theme === "dark";
-}
-
-/** @returns {'light' | 'dark' | ''} */
-export function getTheme() {
-  const t = localStorage.getItem(THEME_KEY) || "";
-  return isSupportedTheme(t) ? t : "";
-}
-
-/** @returns {'light' | 'dark'} */
-export function getCurrentTheme() {
-  const active = document.documentElement.getAttribute("data-bs-theme") || "";
-  if (isSupportedTheme(active)) return active;
-  const saved = getTheme();
-  return saved || "light";
-}
-
-/** @param {'light' | 'dark'} theme */
-export function setTheme(theme) {
-  if (!isSupportedTheme(theme)) return;
-  document.documentElement.setAttribute("data-bs-theme", theme);
-  localStorage.setItem(THEME_KEY, theme);
-}
-
-/** @returns {'light' | 'dark'} */
-export function toggleTheme() {
-  const next = getCurrentTheme() === "dark" ? "light" : "dark";
-  setTheme(next);
-  return next;
-}
-
-export function applyStoredTheme() {
-  const saved = getTheme();
-  if (saved) {
-    document.documentElement.setAttribute("data-bs-theme", saved);
-  }
-}
 
 export function getPlayerUuid() {
   return localStorage.getItem(P + "playerUuid") || "";
