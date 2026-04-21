@@ -6,6 +6,9 @@ export function parsePath(pathname) {
   if (path === "/" || path === "") {
     return { type: "home" };
   }
+  if (path === "/privacy") {
+    return { type: "privacy" };
+  }
   const seg = path.slice(1).split("/")[0];
   if (UUID_RE.test(seg)) {
     return { type: "room", roomUuid: seg };
@@ -21,5 +24,10 @@ export function navigateToRoom(roomUuid) {
 
 export function navigateHome() {
   history.pushState({}, "", "/");
+  dispatchEvent(new PopStateEvent("popstate"));
+}
+
+export function navigatePrivacy() {
+  history.pushState({}, "", "/privacy");
   dispatchEvent(new PopStateEvent("popstate"));
 }

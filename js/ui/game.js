@@ -17,6 +17,7 @@ import { subscribeRoom } from "../mercure.js";
 import { navigateHome } from "../router.js";
 import * as storage from "../storage.js";
 import { renderDial } from "./dial.js";
+import { openSettingsModal } from "./settings-modal.js";
 import { showToast } from "./toast.js";
 
 /**
@@ -66,9 +67,10 @@ export async function mountGame(root, roomUuid, player) {
         <div class="ms-auto d-flex align-items-center gap-2">
           <span class="small text-muted sp-topbar-player"><span class="sp-topbar-player-label">You are:</span> <span class="sp-topbar-player-name">${escapeHtml(pl.localName || "Player")}</span></span>
           <div class="dropdown">
-            <button class="btn btn-light border btn-sm" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Menu">⋯</button>
+            <button class="sp-topbar-menu-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Menu">⋯</button>
             <ul class="dropdown-menu dropdown-menu-end">
               <li><button class="dropdown-item" type="button" id="sp-copy-link">Copy room link</button></li>
+              <li><button class="dropdown-item" type="button" id="sp-topbar-settings">Settings</button></li>
               ${isAdmin ? `<li><button class="dropdown-item" type="button" id="sp-refresh">Refresh room</button></li>` : ""}
             ${isAdmin ? `<li><button class="dropdown-item" type="button" id="sp-new-game">Reset points</button></li>` : ""}
               <li><hr class="dropdown-divider" /></li>
@@ -139,6 +141,18 @@ export async function mountGame(root, roomUuid, player) {
 
     root.querySelector("#sp-home")?.addEventListener("click", () => {
       navigateHome();
+    });
+
+    root.querySelector("#sp-topbar-settings")?.addEventListener("click", () => {
+      void openSettingsModal({
+        onPlayerNameSaved(name) {
+          pl.localName = name;
+          const nameEl = root.querySelector(".sp-topbar-player-name");
+          if (nameEl) {
+            nameEl.textContent = name || "Player";
+          }
+        },
+      });
     });
   }
 
@@ -601,3 +615,4 @@ function escapeHtml(s) {
 function escapeAttr(s) {
   return String(s ?? "").replace(/"/g, "&quot;");
 }
+

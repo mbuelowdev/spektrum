@@ -1,16 +1,20 @@
 import * as api from "./api.js";
+import { initBackgroundMusic } from "./bg-music.js";
 import { startHeartbeat } from "./heartbeat.js";
 import { isPlayerInRoom } from "./gameLogic.js";
 import { navigateHome, navigateToRoom, parsePath } from "./router.js";
 import * as storage from "./storage.js";
 import { mountGame } from "./ui/game.js";
 import { renderLanding } from "./ui/landing.js";
+import { renderPrivacy } from "./ui/privacy.js";
 import { showToast } from "./ui/toast.js";
 
 /** @type {(() => void) | null} */
 let gameCleanup = null;
 
 async function boot() {
+  document.documentElement.setAttribute("data-bs-theme", "dark");
+  initBackgroundMusic();
   window.addEventListener("popstate", () => void route());
   await route();
 }
@@ -32,6 +36,11 @@ async function route() {
         <button type="button" class="btn btn-primary sp-go-home">Back home</button>
       </div>`;
     app.querySelector(".sp-go-home")?.addEventListener("click", () => navigateHome());
+    return;
+  }
+
+  if (loc.type === "privacy") {
+    renderPrivacy(app);
     return;
   }
 

@@ -1,4 +1,51 @@
 const P = "spektrum.";
+const THEME_KEY = P + "theme";
+const AVATAR_KEY = P + "avatar";
+const VOLUME_KEY = P + "volume";
+const BG_MUSIC_KEY = P + "bgMusic";
+
+/**
+ * @param {string} theme
+ * @returns {theme is 'light' | 'dark'}
+ */
+function isSupportedTheme(theme) {
+  return theme === "light" || theme === "dark";
+}
+
+/** @returns {'light' | 'dark' | ''} */
+export function getTheme() {
+  const t = localStorage.getItem(THEME_KEY) || "";
+  return isSupportedTheme(t) ? t : "";
+}
+
+/** @returns {'light' | 'dark'} */
+export function getCurrentTheme() {
+  const active = document.documentElement.getAttribute("data-bs-theme") || "";
+  if (isSupportedTheme(active)) return active;
+  const saved = getTheme();
+  return saved || "light";
+}
+
+/** @param {'light' | 'dark'} theme */
+export function setTheme(theme) {
+  if (!isSupportedTheme(theme)) return;
+  document.documentElement.setAttribute("data-bs-theme", theme);
+  localStorage.setItem(THEME_KEY, theme);
+}
+
+/** @returns {'light' | 'dark'} */
+export function toggleTheme() {
+  const next = getCurrentTheme() === "dark" ? "light" : "dark";
+  setTheme(next);
+  return next;
+}
+
+export function applyStoredTheme() {
+  const saved = getTheme();
+  if (saved) {
+    document.documentElement.setAttribute("data-bs-theme", saved);
+  }
+}
 
 export function getPlayerUuid() {
   return localStorage.getItem(P + "playerUuid") || "";
@@ -20,6 +67,11 @@ export function normalizePlayerName(name) {
 export function setPlayer(uuid, name) {
   localStorage.setItem(P + "playerUuid", uuid);
   localStorage.setItem(P + "playerName", normalizePlayerName(name));
+}
+
+export function setPlayerName(name) {
+  const normalized = normalizePlayerName(name);
+  localStorage.setItem(P + "playerName", normalized);
 }
 
 export function clearPlayer() {
@@ -128,4 +180,43 @@ export function addCreatedRoom(roomUuid) {
 
 export function isRoomCreator(roomUuid) {
   return getCreatedRooms().has(roomUuid);
+}
+
+export function getAvatar() {
+  return localStorage.getItem(AVATAR_KEY) || "detective";
+}
+
+export function setAvatar(avatar) {
+  localStorage.setItem(AVATAR_KEY, String(avatar || "detective"));
+}
+
+export function getVolume() {
+  const raw = localStorage.getItem(VOLUME_KEY);
+  // Missing key yields null; Number(null) === 0, which would wrongly read as 0%.
+  if (raw == null) return 1;
+  const trimmed = raw.trim();
+  if (trimmed === "") return 1;
+  const n = Number(trimmed);
+  if (!Number.isFinite(n)) return 1;
+  return Math.max(0, Math.min(100, Math.round(n)));
+}
+
+export function setVolume(volume) {
+  const n = Number(volume);
+  if (!Number.isFinite(n)) return;
+  localStorage.setItem(VOLUME_KEY, String(Math.max(0, Math.min(100, Math.round(n)))));
+}
+
+/** @returns {boolean} default false */
+export function getBackgroundMusicEnabled() {
+  return localStorage.getItem(BG_MUSIC_KEY) === "1";
+}
+
+/** @param {boolean} on */
+export function setBackgroundMusicEnabled(on) {
+  if (on) {
+    localStorage.setItem(BG_MUSIC_KEY, "1");
+  } else {
+    localStorage.removeItem(BG_MUSIC_KEY);
+  }
 }
