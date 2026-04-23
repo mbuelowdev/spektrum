@@ -20,6 +20,9 @@ import { renderDial } from "./dial.js";
 import { openSettingsModal } from "./settings-modal.js";
 import { showToast } from "./toast.js";
 
+/** @type {Promise<{ toCanvas: (canvas: HTMLCanvasElement, text: string, options?: object) => Promise<void> }> | null} */
+let qrCodeModulePromise = null;
+
 /**
  * @param {HTMLElement} root
  * @param {string} roomUuid
@@ -70,6 +73,7 @@ export async function mountGame(root, roomUuid, player) {
             <button class="sp-topbar-menu-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Menu">⋯</button>
             <ul class="dropdown-menu dropdown-menu-end">
               <li><button class="dropdown-item" type="button" id="sp-copy-link">Copy room link</button></li>
+              <li><button class="dropdown-item" type="button" id="sp-join-mobile">Join on mobile</button></li>
               <li><button class="dropdown-item" type="button" id="sp-topbar-settings">Settings</button></li>
               ${isAdmin ? `<li><button class="dropdown-item" type="button" id="sp-refresh">Refresh room</button></li>` : ""}
             ${isAdmin ? `<li><button class="dropdown-item" type="button" id="sp-new-game">Reset points</button></li>` : ""}
@@ -119,6 +123,10 @@ export async function mountGame(root, roomUuid, player) {
       } catch {
         showToast("Could not copy", "danger");
       }
+    });
+
+    root.querySelector("#sp-join-mobile")?.addEventListener("click", () => {
+      void openJoinOnMobileModal(roomUuid);
     });
 
     root.querySelector("#sp-refresh")?.addEventListener("click", async () => {
@@ -601,9 +609,80 @@ function roomDisplayName(room) {
   );
 }
 
-function shortUuid(uuid) {
-  if (!uuid || uuid.length < 12) return uuid || "";
-  return uuid.slice(0, 8) + "…";
+function getQrCodeModule() {
+  if (!qrCodeModulePromise) {
+    qrCodeModulePromise = import("https://esm.sh/qrcode@1.5.4");
+  }
+  return qrCodeModulePromise;
+}
+
+/**
+ * @param {string} roomUuid
+ */
+async function openJoinOnMobileModal(roomUuid) {
+  const roomUrl = buildMobileJoinUrl(roomUuid);
+  const wrap = document.createElement("div");
+  wrap.innerHTML = `
+    <div class="modal fade" tabindex="-1">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Join on mobile</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body text-center">
+            <p class="small text-muted mb-3">Scan this code to open the room on your phone.</p>
+            <canvas class="sp-mobile-join-qr" width="256" height="256" aria-label="QR code for room link"></canvas>
+            <p class="small text-muted font-monospace mt-3 mb-0 text-break">${escapeHtml(roomUrl)}</p>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  document.body.appendChild(wrap);
+  const modalEl = /** @type {HTMLElement} */ (wrap.querySelector(".modal"));
+  const modal = new bootstrap.Modal(modalEl);
+
+  modalEl.addEventListener(
+    "hidden.bs.modal",
+    () => {
+      wrap.remove();
+    },
+    { once: true }
+  );
+
+  modal.show();
+
+  try {
+    const { toCanvas } = await getQrCodeModule();
+    const canvas = /** @type {HTMLCanvasElement | null} */ (wrap.querySelector(".sp-mobile-join-qr"));
+    if (!canvas) {
+      return;
+    }
+    await toCanvas(canvas, roomUrl, {
+      width: 256,
+      margin: 1,
+      errorCorrectionLevel: "M",
+    });
+  } catch (e) {
+    modal.hide();
+    showToast(e instanceof Error ? e.message : "Could not generate QR code", "danger");
+  }
+}
+
+/**
+ * @param {string} roomUuid
+ */
+function buildMobileJoinUrl(roomUuid) {
+  const url = new URL(`/${roomUuid}`, location.origin);
+  const playerUuid = storage.getPlayerUuid();
+  const playerName = storage.getPlayerName();
+  if (playerUuid) {
+    url.searchParams.set("playerUUID", playerUuid);
+  }
+  if (playerName) {
+    url.searchParams.set("playerName", playerName);
+  }
+  return url.toString();
 }
 
 function escapeHtml(s) {

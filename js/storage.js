@@ -1,3 +1,5 @@
+import { DEFAULT_AVATAR_ID, normalizeAvatarId } from "./avatar-catalog.js";
+
 const P = "spektrum.";
 const AVATAR_KEY = P + "avatar";
 const VOLUME_KEY = P + "volume";
@@ -23,6 +25,10 @@ export function normalizePlayerName(name) {
 export function setPlayer(uuid, name) {
   localStorage.setItem(P + "playerUuid", uuid);
   localStorage.setItem(P + "playerName", normalizePlayerName(name));
+}
+
+export function setPlayerUuid(uuid) {
+  localStorage.setItem(P + "playerUuid", String(uuid ?? ""));
 }
 
 export function setPlayerName(name) {
@@ -139,11 +145,11 @@ export function isRoomCreator(roomUuid) {
 }
 
 export function getAvatar() {
-  return localStorage.getItem(AVATAR_KEY) || "detective";
+  return normalizeAvatarId(localStorage.getItem(AVATAR_KEY));
 }
 
 export function setAvatar(avatar) {
-  localStorage.setItem(AVATAR_KEY, String(avatar || "detective"));
+  localStorage.setItem(AVATAR_KEY, normalizeAvatarId(avatar || DEFAULT_AVATAR_ID));
 }
 
 export function getVolume() {

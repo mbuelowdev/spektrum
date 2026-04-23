@@ -1,4 +1,5 @@
 import * as api from "./api.js";
+import { normalizeAvatarId, pickRandomAvatarId } from "./avatar-catalog.js";
 import { initBackgroundMusic } from "./bg-music.js";
 import { startHeartbeat } from "./heartbeat.js";
 import { isPlayerInRoom } from "./gameLogic.js";
@@ -6,8 +7,12 @@ import { navigateHome, navigateToRoom, parsePath } from "./router.js";
 import * as storage from "./storage.js";
 import { mountGame } from "./ui/game.js";
 import { renderLanding } from "./ui/landing.js";
+import { openPlayerProfileModal } from "./ui/player-profile-modal.js";
 import { renderPrivacy } from "./ui/privacy.js";
 import { showToast } from "./ui/toast.js";
+
+const UUID_RE =
+  /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/;
 
 /** @type {(() => void) | null} */
 let gameCleanup = null;
@@ -28,6 +33,8 @@ async function route() {
   const app = document.getElementById("app");
   if (!app) return;
 
+  applyPlayerOverridesFromQuery();
+
   const loc = parsePath(location.pathname);
   if (loc.type === "unknown") {
     app.innerHTML = `
@@ -42,6 +49,19 @@ async function route() {
   if (loc.type === "privacy") {
     renderPrivacy(app);
     return;
+  }
+
+  const hasRegisteredPlayer = Boolean(
+    storage.getPlayerUuid() && storage.getPlayerName()
+  );
+  if (loc.type === "home" && !hasRegisteredPlayer) {
+    // Paint the home background/shell first so onboarding does not feel like a blank load.
+    renderLanding(app, {
+      playerName: "Player",
+      rooms: storage.getLastRooms(),
+      onCreateRoom: () => handleCreateRoom(),
+    });
+    await waitForNextPaint();
   }
 
   try {
@@ -73,9 +93,46 @@ async function route() {
   }
 }
 
+function applyPlayerOverridesFromQuery() {
+  const params = new URLSearchParams(location.search);
+  let shouldRewriteUrl = false;
+
+  if (params.has("playerUUID")) {
+    const playerUuid = params.get("playerUUID") || "";
+    if (UUID_RE.test(playerUuid)) {
+      storage.setPlayerUuid(playerUuid);
+    }
+    params.delete("playerUUID");
+    shouldRewriteUrl = true;
+  }
+
+  if (params.has("playerName")) {
+    storage.setPlayerName(params.get("playerName") || "");
+    params.delete("playerName");
+    shouldRewriteUrl = true;
+  }
+
+  if (shouldRewriteUrl) {
+    const nextSearch = params.toString();
+    const nextUrl = `${location.pathname}${nextSearch ? `?${nextSearch}` : ""}${location.hash || ""}`;
+    history.replaceState(history.state, "", nextUrl);
+  }
+}
+
+function waitForNextPaint() {
+  return new Promise((resolve) => {
+    window.requestAnimationFrame(() => resolve());
+  });
+}
+
 async function ensurePlayer() {
   let uuid = storage.getPlayerUuid();
   let name = storage.getPlayerName();
+  const existingAvatar = storage.getAvatar();
+  const normalizedAvatar = normalizeAvatarId(existingAvatar);
+  if (normalizedAvatar !== existingAvatar) {
+    storage.setAvatar(normalizedAvatar);
+  }
   if (uuid && name) {
     const normalized = storage.normalizePlayerName(name);
     if (normalized !== name) {
@@ -84,7 +141,24 @@ async function ensurePlayer() {
     return;
   }
 
-  const chosenName = storage.normalizePlayerName(await promptPlayerNameModal());
+  const initialAvatarId = existingAvatar ? normalizeAvatarId(existingAvatar) : pickRandomAvatarId();
+  if (!existingAvatar) {
+    storage.setAvatar(initialAvatarId);
+  }
+  const chosenPlayer = await openPlayerProfileModal({
+    title: "Welcome",
+    submitLabel: "Continue",
+    backdropStatic: true,
+    showPrivacyLink: false,
+    showForgetMe: false,
+    onSaved(payload) {
+      storage.setAvatar(payload.avatarId);
+    },
+  });
+  if (!chosenPlayer) {
+    throw new Error("Could not initialize player profile");
+  }
+  const chosenName = storage.normalizePlayerName(chosenPlayer.name);
   if (!chosenName) {
     throw new Error("Player name cannot be empty");
   }
@@ -94,62 +168,7 @@ async function ensurePlayer() {
     throw new Error("Server did not return player uuid");
   }
   storage.setPlayer(newUuid, chosenName);
-}
-
-/**
- * @returns {Promise<string>}
- */
-function promptPlayerNameModal() {
-  return new Promise((resolve) => {
-    const wrap = document.createElement("div");
-    wrap.innerHTML = `
-      <div class="modal fade" tabindex="-1" data-bs-backdrop="static">
-        <div class="modal-dialog modal-dialog-centered">
-          <div class="modal-content">
-            <div class="modal-header">
-              <h5 class="modal-title">Welcome</h5>
-            </div>
-            <form class="modal-body">
-              <label class="form-label">Your name</label>
-              <input type="text" name="name" class="form-control mb-3" required maxlength="64" autocomplete="nickname" />
-              <button type="submit" class="btn btn-primary w-100">Continue</button>
-            </form>
-          </div>
-        </div>
-      </div>`;
-    document.body.appendChild(wrap);
-    const el = wrap.querySelector(".modal");
-    const modal = new bootstrap.Modal(el);
-    const form = wrap.querySelector("form");
-    const input = /** @type {HTMLInputElement} */ (form.querySelector('input[name="name"]'));
-    const validateName = () => {
-      const v = storage.normalizePlayerName(input.value || "");
-      input.setCustomValidity(v ? "" : "Please enter your name.");
-      return Boolean(v);
-    };
-    input.addEventListener("input", () => {
-      validateName();
-      input.reportValidity();
-    });
-    form.addEventListener("submit", (e) => {
-      e.preventDefault();
-      if (!validateName()) {
-        input.reportValidity();
-        return;
-      }
-      const v = storage.normalizePlayerName(input.value || "");
-      modal.hide();
-      resolve(v);
-    });
-    modal.show();
-    el.addEventListener(
-      "hidden.bs.modal",
-      () => {
-        wrap.remove();
-      },
-      { once: true }
-    );
-  });
+  storage.setAvatar(chosenPlayer.avatarId);
 }
 
 async function enterRoomFlow(app, roomUuid) {
