@@ -16,7 +16,7 @@ import {
 import { subscribeRoom } from "../mercure.js";
 import { navigateHome } from "../router.js";
 import * as storage from "../storage.js";
-import { renderDial } from "./dial.js";
+import { renderDial } from "./dial-elliptical.js";
 import { openSettingsModal } from "./settings-modal.js";
 import { showToast } from "./toast.js";
 
@@ -88,13 +88,10 @@ export async function mountGame(root, roomUuid, player) {
           <aside class="col-md-4 col-lg-3 sp-sidebar-col pt-3 pb-3 pe-3 ps-0 d-none d-md-block">
             <div id="sp-sidebar-desktop"></div>
           </aside>
-          <main class="col-md-8 col-lg-9 px-2 px-md-4 pb-5">
+          <main class="col-md-8 col-lg-9 px-2 px-md-4">
             <div class="mx-auto sp-dial-wrap">
-              <div id="sp-clue" class="sp-clue-box text-muted"></div>
               <div id="sp-dial"></div>
-              <div id="sp-admin-start" class="mt-3 w-100"></div>
             </div>
-            <div id="sp-actions" class="mt-3 mx-auto" style="max-width: 420px"></div>
             <p class="text-center text-muted small mt-2 mb-0" id="sp-state-hint"></p>
           </main>
         </div>
@@ -172,22 +169,18 @@ export async function mountGame(root, roomUuid, player) {
     if (mob) mob.innerHTML = html;
     wireSidebar(r, pl);
 
-    const clueEl = root.querySelector("#sp-clue");
-    if (clueEl) {
-      const clue = r.gameCluegiverGuessText;
-      clueEl.textContent = clue && String(clue).trim() ? clue : "";
-    }
-
     const dialMount = root.querySelector("#sp-dial");
     if (dialMount) {
       dialMount.innerHTML = "";
       const dialClickHandler = canPlayerClickDial(r, pl.localUuid)
         ? async (degree) => {
             localDialRayDegree = degree;
-            const input = root.querySelector("#sp-actions .sp-deg");
-            if (!input || !("value" in input)) return;
             const value = formatDialDegree(degree);
-            input.value = value;
+            root.querySelectorAll(".sp-sidebar-controls .sp-deg").forEach((input) => {
+              if ("value" in input) {
+                input.value = value;
+              }
+            });
             try {
               await gameAction(r.uuid, pl.localUuid, "SUBMIT_PREVIEW_GUESS", value);
             } catch (e) {
@@ -198,11 +191,14 @@ export async function mountGame(root, roomUuid, player) {
       renderDial(dialMount, r, pl.localUuid, dialClickHandler, localDialRayDegree);
     }
 
-    const startWrap = root.querySelector("#sp-admin-start");
-    if (startWrap) {
+    root.querySelectorAll(".sp-sidebar-controls").forEach((panel) => {
+      const startWrap = panel.querySelector(".sp-admin-start");
+      const actions = panel.querySelector(".sp-actions");
+      if (!startWrap || !actions) return;
+
       if (storage.isRoomCreator(roomUuid) && canSwitchTeam(r)) {
-        startWrap.innerHTML = `<button type="button" class="btn btn-primary w-100" id="sp-btn-start-game">Start game</button>`;
-        startWrap.querySelector("#sp-btn-start-game")?.addEventListener("click", async () => {
+        startWrap.innerHTML = `<button type="button" class="btn btn-primary w-100 sp-btn-start-game">Start game</button>`;
+        startWrap.querySelector(".sp-btn-start-game")?.addEventListener("click", async () => {
           try {
             await gameAction(r.uuid || roomUuid, pl.localUuid, "CREATE_NEW_GAME", "-");
             showToast("Game started", "success");
@@ -213,10 +209,7 @@ export async function mountGame(root, roomUuid, player) {
       } else {
         startWrap.innerHTML = "";
       }
-    }
 
-    const actions = root.querySelector("#sp-actions");
-    if (actions) {
       actions.innerHTML = "";
       renderActions(actions, r, pl, {
         onPreviewRemoved: () => {
@@ -226,10 +219,12 @@ export async function mountGame(root, roomUuid, player) {
           dialMountNow.innerHTML = "";
           renderDial(dialMountNow, r, pl.localUuid, async (degree) => {
             localDialRayDegree = degree;
-            const input = root.querySelector("#sp-actions .sp-deg");
-            if (!input || !("value" in input)) return;
             const value = formatDialDegree(degree);
-            input.value = value;
+            root.querySelectorAll(".sp-sidebar-controls .sp-deg").forEach((input) => {
+              if ("value" in input) {
+                input.value = value;
+              }
+            });
             try {
               await gameAction(r.uuid, pl.localUuid, "SUBMIT_PREVIEW_GUESS", value);
             } catch (e) {
@@ -238,7 +233,7 @@ export async function mountGame(root, roomUuid, player) {
           }, localDialRayDegree);
         },
       });
-    }
+    });
 
     const hint = root.querySelector("#sp-state-hint");
     if (hint) {
@@ -253,7 +248,7 @@ export async function mountGame(root, roomUuid, player) {
         if (!team) return;
         try {
           await switchTeam(roomUuid, pl.localUuid, team);
-          showToast(`Switched to team ${team}`, "success");
+          showToast(`Switched to ${teamDisplayName(team)}`, "success");
           await pullRoomFromServer(true);
         } catch (e) {
           showToast(e.message || "Could not switch team", "danger");
@@ -310,11 +305,11 @@ function sidebarHtml(room, pl) {
   return `
     <h6 class="fw-semibold mb-3 text-body sp-sidebar-players-title d-none d-md-block">Players</h6>
     <div class="sp-team-a">
-      <h6><span>Team A</span><span class="sp-team-points">${room.gamePointsTeamA ?? 0}</span></h6>
+      <h6><span>${teamDisplayName("A")}</span><span class="sp-team-points">${room.gamePointsTeamA ?? 0}</span></h6>
       ${listA || `<div class="small text-muted">Empty</div>`}
     </div>
     <div class="sp-team-b">
-      <h6><span>Team B</span><span class="sp-team-points">${room.gamePointsTeamB ?? 0}</span></h6>
+      <h6><span>${teamDisplayName("B")}</span><span class="sp-team-points">${room.gamePointsTeamB ?? 0}</span></h6>
       ${listB || `<div class="small text-muted">Empty</div>`}
     </div>
     ${switchBlock}
@@ -323,6 +318,10 @@ function sidebarHtml(room, pl) {
       <span class="text-nowrap">Round ${(Number(room.gameRoundIndex) || 0) + 1}</span>
     </div>
     <p class="small text-muted mb-0 sp-sidebar-game-state">State: ${escapeHtml(room.gameState || "—")}</p>
+    <div class="sp-sidebar-controls mt-3">
+      <div class="sp-admin-start"></div>
+      <div class="sp-actions mt-3"></div>
+    </div>
   `;
 }
 
@@ -396,10 +395,10 @@ function renderActions(container, room, pl, callbacks = {}) {
     }
     container.innerHTML = `
       <label class="form-label small">Your clue</label>
-      <textarea class="form-control mb-2" rows="2" id="sp-clue-input" placeholder="One short phrase…">${escapeHtml(room.gameCluegiverGuessText || "")}</textarea>
+      <textarea class="form-control mb-2 sp-clue-input" rows="2" placeholder="One short phrase…">${escapeHtml(room.gameCluegiverGuessText || "")}</textarea>
       <button type="button" class="btn btn-primary w-100 sp-submit-clue">Submit clue</button>`;
     container.querySelector(".sp-submit-clue")?.addEventListener("click", async () => {
-      const v = /** @type {HTMLTextAreaElement} */ (container.querySelector("#sp-clue-input")).value;
+      const v = /** @type {HTMLTextAreaElement} */ (container.querySelector(".sp-clue-input")).value;
       try {
         await gameAction(room.uuid, uid, "SUBMIT_CLUEGIVER_CLUE", v || "-");
         showToast("Clue submitted", "success");
@@ -607,6 +606,12 @@ function roomDisplayName(room) {
   return storage.normalizeRoomName(
     (room && (room.name || room.roomName || room.Name)) || ""
   );
+}
+
+function teamDisplayName(team) {
+  if (team === "A") return "Coppers";
+  if (team === "B") return "Thugs";
+  return "Team";
 }
 
 function getQrCodeModule() {

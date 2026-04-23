@@ -1,5 +1,4 @@
 import { applyMusicVolume, syncBackgroundMusic } from "../bg-music.js";
-import { AVATAR_OPTIONS, normalizeAvatarId } from "../avatar-catalog.js";
 import { navigatePrivacy } from "../router.js";
 import * as storage from "../storage.js";
 
@@ -10,32 +9,16 @@ import * as storage from "../storage.js";
  *   backdropStatic?: boolean;
  *   showPrivacyLink?: boolean;
  *   showForgetMe?: boolean;
- *   onSaved?: (payload: { name: string; avatarId: string }) => void;
+ *   onSaved?: (payload: { name: string }) => void;
  * }} opts
- * @returns {Promise<{ name: string; avatarId: string } | null>}
+ * @returns {Promise<{ name: string } | null>}
  */
 export function openPlayerProfileModal(opts) {
   return new Promise((resolve) => {
     let settled = false;
     const currentName = storage.getPlayerName();
-    const currentAvatar = normalizeAvatarId(storage.getAvatar());
     const musicOn = storage.getBackgroundMusicEnabled();
     const vol = storage.getVolume();
-    const avatarOptionsHtml = AVATAR_OPTIONS.map(
-      (opt) => `
-        <button
-          type="button"
-          class="sp-avatar-option ${opt.id === currentAvatar ? "is-selected" : ""}"
-          data-avatar-id="${escapeAttr(opt.id)}"
-          aria-label="${escapeAttr(opt.label)}"
-          aria-pressed="${opt.id === currentAvatar ? "true" : "false"}"
-          title="${escapeAttr(opt.label)}"
-        >
-          <span class="sp-avatar-swatch" style="background:${escapeAttr(opt.background)}">
-            <img src="${escapeAttr(opt.imageUrl)}" alt="" loading="lazy" />
-          </span>
-        </button>`
-    ).join("");
     const wrap = document.createElement("div");
     wrap.innerHTML = `
       <div class="modal fade" tabindex="-1" ${opts.backdropStatic ? 'data-bs-backdrop="static"' : ""}>
@@ -48,8 +31,6 @@ export function openPlayerProfileModal(opts) {
             <form class="modal-body">
               <label class="form-label">Name</label>
               <input type="text" class="form-control mb-3" id="sp-profile-name" maxlength="64" value="${escapeAttr(currentName)}" required autocomplete="nickname" />
-              <label class="form-label">Avatar</label>
-              <div class="sp-avatar-grid mb-3">${avatarOptionsHtml}</div>
               <div class="mb-3 sp-settings-audio">
                 <div class="form-check form-switch">
                   <input class="form-check-input" type="checkbox" role="switch" id="sp-profile-bg-music" ${musicOn ? "checked" : ""} />
@@ -77,8 +58,6 @@ export function openPlayerProfileModal(opts) {
 
     const el = wrap.querySelector(".modal");
     const modal = new bootstrap.Modal(el);
-    let selectedAvatar = currentAvatar;
-    const avatarButtons = wrap.querySelectorAll("[data-avatar-id]");
     const bgMusicToggle = /** @type {HTMLInputElement | null} */ (wrap.querySelector("#sp-profile-bg-music"));
     const volRange = /** @type {HTMLInputElement | null} */ (wrap.querySelector("#sp-profile-music-vol"));
     const volPctEl = wrap.querySelector("#sp-profile-music-vol-pct");
@@ -92,17 +71,6 @@ export function openPlayerProfileModal(opts) {
         volPctEl.textContent = `${pct}%`;
       }
     };
-
-    avatarButtons.forEach((btn) => {
-      btn.addEventListener("click", () => {
-        selectedAvatar = normalizeAvatarId(btn.getAttribute("data-avatar-id"));
-        avatarButtons.forEach((elBtn) => {
-          const isSelected = elBtn.getAttribute("data-avatar-id") === selectedAvatar;
-          elBtn.classList.toggle("is-selected", isSelected);
-          elBtn.setAttribute("aria-pressed", isSelected ? "true" : "false");
-        });
-      });
-    });
 
     bgMusicToggle?.addEventListener("change", () => {
       const on = Boolean(bgMusicToggle.checked);
@@ -158,7 +126,6 @@ export function openPlayerProfileModal(opts) {
       if (nameEl) nameEl.setCustomValidity("");
 
       storage.setPlayerName(nextName);
-      storage.setAvatar(selectedAvatar);
       if (volRange) {
         const n = Number(volRange.value);
         if (Number.isFinite(n)) {
@@ -169,8 +136,8 @@ export function openPlayerProfileModal(opts) {
         storage.setBackgroundMusicEnabled(Boolean(bgMusicToggle.checked));
       }
       syncBackgroundMusic();
-      opts.onSaved?.({ name: nextName, avatarId: selectedAvatar });
-      finish({ name: nextName, avatarId: selectedAvatar });
+      opts.onSaved?.({ name: nextName });
+      finish({ name: nextName });
     });
 
     modal.show();

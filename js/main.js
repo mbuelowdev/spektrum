@@ -1,5 +1,4 @@
 import * as api from "./api.js";
-import { normalizeAvatarId, pickRandomAvatarId } from "./avatar-catalog.js";
 import { initBackgroundMusic } from "./bg-music.js";
 import { startHeartbeat } from "./heartbeat.js";
 import { isPlayerInRoom } from "./gameLogic.js";
@@ -128,11 +127,6 @@ function waitForNextPaint() {
 async function ensurePlayer() {
   let uuid = storage.getPlayerUuid();
   let name = storage.getPlayerName();
-  const existingAvatar = storage.getAvatar();
-  const normalizedAvatar = normalizeAvatarId(existingAvatar);
-  if (normalizedAvatar !== existingAvatar) {
-    storage.setAvatar(normalizedAvatar);
-  }
   if (uuid && name) {
     const normalized = storage.normalizePlayerName(name);
     if (normalized !== name) {
@@ -141,19 +135,12 @@ async function ensurePlayer() {
     return;
   }
 
-  const initialAvatarId = existingAvatar ? normalizeAvatarId(existingAvatar) : pickRandomAvatarId();
-  if (!existingAvatar) {
-    storage.setAvatar(initialAvatarId);
-  }
   const chosenPlayer = await openPlayerProfileModal({
     title: "Welcome",
     submitLabel: "Continue",
     backdropStatic: true,
     showPrivacyLink: false,
     showForgetMe: false,
-    onSaved(payload) {
-      storage.setAvatar(payload.avatarId);
-    },
   });
   if (!chosenPlayer) {
     throw new Error("Could not initialize player profile");
@@ -168,7 +155,6 @@ async function ensurePlayer() {
     throw new Error("Server did not return player uuid");
   }
   storage.setPlayer(newUuid, chosenName);
-  storage.setAvatar(chosenPlayer.avatarId);
 }
 
 async function enterRoomFlow(app, roomUuid) {

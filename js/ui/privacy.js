@@ -20,14 +20,14 @@ export function renderPrivacy(root) {
             <li><strong>Player identity:</strong> player name and player id/uuid.</li>
             <li><strong>Room metadata:</strong> room uuid and room name (room names may include player names, e.g. "Alex's room").</li>
             <li><strong>Gameplay data:</strong> team assignments, active player, clue/guess values, round state, and scores.</li>
-            <li><strong>Client preferences:</strong> selected avatar, background music on/off, and music volume.</li>
+            <li><strong>Client preferences:</strong> background music on/off and music volume.</li>
           </ul>
 
           <h2 class="h5 mt-4">Where data is stored</h2>
           <p class="mb-2"><strong>Backend API storage</strong></p>
           <p class="mb-3">The API stores room and gameplay data, including player names and room names, so other players in the same room can see shared state in real time.</p>
           <p class="mb-2"><strong>Browser local storage</strong></p>
-          <p class="mb-3">Your browser stores convenience data under Spektrum keys (for example: player uuid/name, last rooms, room names, avatar, background music, and volume).</p>
+          <p class="mb-3">Your browser stores convenience data under Spektrum keys (for example: player uuid/name, last rooms, room names, background music, and volume).</p>
 
           <h2 class="h5 mt-4">Why data is used</h2>
           <ul>
@@ -39,7 +39,7 @@ export function renderPrivacy(root) {
 
           <h2 class="h5 mt-4">How to remove your data</h2>
           <p class="mb-2"><strong>Local (browser) data</strong></p>
-          <p class="mb-3">Use browser site-data clearing or reset actions in the app to remove locally cached identifiers, room history, avatar, and audio preference settings.</p>
+          <p class="mb-3">Use browser site-data clearing or reset actions in the app to remove locally cached identifiers, room history, and audio preference settings.</p>
           <p class="mb-2"><strong>Backend room data</strong></p>
           <p class="mb-0">Room/game data is managed by the API. If you want room data removed from the backend, contact the operator of this Spektrum deployment.</p>
         </div>

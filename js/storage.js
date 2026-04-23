@@ -1,7 +1,4 @@
-import { DEFAULT_AVATAR_ID, normalizeAvatarId } from "./avatar-catalog.js";
-
 const P = "spektrum.";
-const AVATAR_KEY = P + "avatar";
 const VOLUME_KEY = P + "volume";
 const BG_MUSIC_KEY = P + "bgMusic";
 
@@ -142,14 +139,6 @@ export function addCreatedRoom(roomUuid) {
 
 export function isRoomCreator(roomUuid) {
   return getCreatedRooms().has(roomUuid);
-}
-
-export function getAvatar() {
-  return normalizeAvatarId(localStorage.getItem(AVATAR_KEY));
-}
-
-export function setAvatar(avatar) {
-  localStorage.setItem(AVATAR_KEY, normalizeAvatarId(avatar || DEFAULT_AVATAR_ID));
 }
 
 export function getVolume() {
