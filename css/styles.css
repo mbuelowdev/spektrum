@@ -349,6 +349,42 @@ a:hover {
   }
 }
 
+@media (hover: none) and (pointer: coarse) {
+  .sp-app-title-home {
+    -webkit-text-stroke: 0;
+    text-shadow:
+      0.028em 0 0 #334155,
+      -0.028em 0 0 #334155,
+      0 0.028em 0 #334155,
+      0 -0.028em 0 #334155,
+      0.02em 0.02em 0 #334155,
+      -0.02em 0.02em 0 #334155,
+      0.02em -0.02em 0 #334155,
+      -0.02em -0.02em 0 #334155,
+      -0.05em 0.04em 0 #1e293b,
+      -0.07em 0.06em 0 #1e293b,
+      -0.09em 0.08em 0 #1e293b,
+      0 0.02em 0 rgba(255, 255, 255, 0.25);
+  }
+
+  .sp-topbar .sp-app-title-home {
+    -webkit-text-stroke: 0;
+    text-shadow:
+      0.038em 0 0 #334155,
+      -0.038em 0 0 #334155,
+      0 0.038em 0 #334155,
+      0 -0.038em 0 #334155,
+      0.025em 0.025em 0 #334155,
+      -0.025em 0.025em 0 #334155,
+      0.025em -0.025em 0 #334155,
+      -0.025em -0.025em 0 #334155,
+      -0.055em 0.04em 0 #1e293b,
+      -0.075em 0.06em 0 #1e293b,
+      -0.095em 0.08em 0 #1e293b,
+      0 0.02em 0 rgba(255, 255, 255, 0.2);
+  }
+}
+
 
 /* Team rows */
 .sp-team-a {
