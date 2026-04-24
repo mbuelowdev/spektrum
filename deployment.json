@@ -2,7 +2,6 @@
   "version": "1.0.7",
   "name": "mbuelow.dev/spektrum",
   "tag": "latest",
-  "buildCommitSha": "4dc3de6e80ab27b196318499c0ab6aef8761e433",
   "url": "https://spektrum.mbuelow.dev",
   "informDiscord": true,
   "_documentation1": "The arguments are being passed to docker run. They can be empty.",
