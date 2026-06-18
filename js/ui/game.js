@@ -16,7 +16,13 @@ import {
 import { subscribeRoom } from "../mercure.js";
 import { navigateHome } from "../router.js";
 import * as storage from "../storage.js";
-import { renderDial } from "./dial-semicircle.js";
+import {
+  formatDialGuessValue,
+  formatDialNumber,
+  guessFromRecord,
+  parseDialGuessValue,
+  renderDial,
+} from "./dial-semicircle.js";
 import { openSettingsModal } from "./settings-modal.js";
 import { showToast } from "./toast.js";
 
@@ -32,7 +38,8 @@ let qrCodeModulePromise = null;
 export async function mountGame(root, roomUuid, player) {
   let room = await getRoom(roomUuid);
   let unsubMercure = null;
-  let localDialRayDegree = null;
+  /** @type {{ degree: number, distance: number } | null} */
+  let localDialGuess = null;
 
   /** GET /room and repaint (covers missed Mercure or slow hub). */
   async function pullRoomFromServer(showError) {
@@ -163,20 +170,28 @@ export async function mountGame(root, roomUuid, player) {
 
   function buildDialClickHandler(r, pl) {
     if (!canPlayerClickDial(r, pl.localUuid)) return undefined;
-    return async (degree) => {
-      localDialRayDegree = degree;
-      const value = formatDialDegree(degree);
-      root.querySelectorAll(".sp-sidebar-controls .sp-deg").forEach((input) => {
-        if ("value" in input) {
-          input.value = value;
-        }
-      });
+    return async (guess) => {
+      localDialGuess = guess;
+      syncGuessInputs(guess);
       try {
-        await gameAction(r.uuid, pl.localUuid, "SUBMIT_PREVIEW_GUESS", value);
+        await gameAction(r.uuid, pl.localUuid, "SUBMIT_PREVIEW_GUESS", formatDialGuessValue(guess));
       } catch (e) {
         showToast(e.message || "Could not save preview", "danger");
       }
     };
+  }
+
+  function syncGuessInputs(guess) {
+    root.querySelectorAll(".sp-sidebar-controls .sp-deg-angle").forEach((input) => {
+      if ("value" in input) {
+        input.value = formatDialNumber(guess.degree);
+      }
+    });
+    root.querySelectorAll(".sp-sidebar-controls .sp-deg-distance").forEach((input) => {
+      if ("value" in input) {
+        input.value = formatDialNumber(guess.distance);
+      }
+    });
   }
 
   function paintDial(r, pl) {
@@ -188,11 +203,16 @@ export async function mountGame(root, roomUuid, player) {
       r,
       pl.localUuid,
       buildDialClickHandler(r, pl),
-      localDialRayDegree,
+      localDialGuess,
     );
   }
 
   function updateContent(r, pl) {
+    const gs = r.gameState || "";
+    if (gs !== "STATE_02_GUESS_ROUND" && gs !== "STATE_03_COUNTER_GUESS_ROUND") {
+      localDialGuess = null;
+    }
+
     const desk = root.querySelector("#sp-sidebar-desktop");
     const mob = root.querySelector("#sp-sidebar-mobile");
     const html = sidebarHtml(r, pl);
@@ -224,7 +244,11 @@ export async function mountGame(root, roomUuid, player) {
       actions.innerHTML = "";
       renderActions(actions, r, pl, {
         onPreviewRemoved: () => {
-          localDialRayDegree = null;
+          localDialGuess = null;
+          paintDial(r, pl);
+        },
+        onGuessChanged: (guess) => {
+          localDialGuess = guess;
           paintDial(r, pl);
         },
       });
@@ -451,17 +475,23 @@ function renderGuessRound(container, room, uid, gs, callbacks = {}) {
     return;
   }
 
-  const initialDeg = escapeAttr(guessFieldInitialValue(room, uid));
+  const initialGuess = guessFieldInitialGuess(room, uid);
+  const initialAngle = initialGuess ? escapeAttr(formatDialNumber(initialGuess.degree)) : "";
+  const initialDistance = initialGuess ? escapeAttr(formatDialNumber(initialGuess.distance)) : "";
   container.innerHTML = `
-    <label class="form-label small mb-1">Guess (0–160)</label>
-    <input type="number" class="form-control mb-2 sp-deg" min="0" max="160" step="0.01" placeholder="e.g. 72.5" value="${initialDeg}" />
+    <label class="form-label small mb-1">Angle (0–160)</label>
+    <input type="number" class="form-control mb-2 sp-deg-angle" min="0" max="160" step="0.01" placeholder="e.g. 72.5" value="${initialAngle}" />
+    <label class="form-label small mb-1">Distance (0–1)</label>
+    <input type="number" class="form-control mb-2 sp-deg-distance" min="0" max="1" step="0.01" placeholder="e.g. 0.65" value="${initialDistance}" />
+    <p class="small text-muted mb-2">Click the dial to place your pin, or enter angle and distance manually.</p>
     <div class="d-flex flex-wrap gap-2 justify-content-center">
       <button type="button" class="btn btn-outline-secondary btn-sm sp-preview">Save preview</button>
       <button type="button" class="btn btn-outline-secondary btn-sm sp-remove">Remove my preview</button>
       <button type="button" class="btn btn-primary btn-sm sp-final">Lock in guess</button>
     </div>`;
 
-  const deg = container.querySelector(".sp-deg");
+  const angleInput = container.querySelector(".sp-deg-angle");
+  const distanceInput = container.querySelector(".sp-deg-distance");
   const previewBtn = container.querySelector(".sp-preview");
   const removeBtn = container.querySelector(".sp-remove");
   const finalBtn = container.querySelector(".sp-final");
@@ -474,7 +504,8 @@ function renderGuessRound(container, room, uid, gs, callbacks = {}) {
     previewBtn?.classList.add("d-none");
     removeBtn?.classList.add("d-none");
     finalBtn?.classList.add("d-none");
-    deg?.setAttribute("disabled", "true");
+    angleInput?.setAttribute("disabled", "true");
+    distanceInput?.setAttribute("disabled", "true");
     container.insertAdjacentHTML(
       "afterbegin",
       `<p class="small text-muted text-center">Your team is not guessing in this phase.</p>`
@@ -483,13 +514,16 @@ function renderGuessRound(container, room, uid, gs, callbacks = {}) {
   }
 
   previewBtn?.addEventListener("click", async () => {
-    const parsed = parseGuessDegree(deg);
+    const parsed = parseGuessFromInputs(angleInput, distanceInput);
     if (!parsed.ok) {
-      showToast("Enter a number between 0 and 160.", "danger");
+      showToast("Enter angle (0–160) and distance (0–1).", "danger");
       return;
     }
     try {
       await gameAction(room.uuid, uid, "SUBMIT_PREVIEW_GUESS", parsed.value);
+      if (typeof callbacks.onGuessChanged === "function") {
+        callbacks.onGuessChanged(parsed.guess);
+      }
       showToast("Preview saved", "success");
     } catch (e) {
       showToast(e.message || "Failed", "danger");
@@ -515,13 +549,16 @@ function renderGuessRound(container, room, uid, gs, callbacks = {}) {
   });
 
   finalBtn?.addEventListener("click", async () => {
-    const parsed = parseGuessDegree(deg);
+    const parsed = parseGuessFromInputs(angleInput, distanceInput);
     if (!parsed.ok) {
-      showToast("Enter a number between 0 and 160.", "danger");
+      showToast("Enter angle (0–160) and distance (0–1).", "danger");
       return;
     }
     try {
       await gameAction(room.uuid, uid, "SUBMIT_GUESS", parsed.value);
+      if (typeof callbacks.onGuessChanged === "function") {
+        callbacks.onGuessChanged(parsed.guess);
+      }
       showToast("Guess locked", "success");
     } catch (e) {
       showToast(e.message || "Failed", "danger");
@@ -530,41 +567,31 @@ function renderGuessRound(container, room, uid, gs, callbacks = {}) {
 
 }
 
-/** Last degree this player has in `gameGuesses` (keeps the field filled after submit / Mercure refresh). */
-function guessFieldInitialValue(room, playerUuid) {
+/** Last guess this player has in `gameGuesses` (keeps fields filled after submit / Mercure refresh). */
+function guessFieldInitialGuess(room, playerUuid) {
   const mine = (room.gameGuesses || []).filter(
     (g) => g.player && playerId(g.player) === playerUuid
   );
-  if (!mine.length) return "";
-  const last = mine[mine.length - 1];
-  if (last.degree == null) return "";
-  const n = Number(last.degree);
-  if (!Number.isFinite(n)) return "";
-  return String(n);
+  if (!mine.length) return null;
+  return guessFromRecord(mine[mine.length - 1]);
 }
 
 /**
- * Guess degrees must be a finite number in [0, 160] so the backend never receives "-" or garbage.
- * @returns {{ ok: true, value: string } | { ok: false }}
+ * @returns {{ ok: true, value: string, guess: { degree: number, distance: number } } | { ok: false }}
  */
-function parseGuessDegree(input) {
-  const raw = input && "value" in input ? String(input.value).trim() : "";
-  if (raw === "") {
+function parseGuessFromInputs(angleInput, distanceInput) {
+  const angleRaw = angleInput && "value" in angleInput ? String(angleInput.value).trim() : "";
+  const distanceRaw =
+    distanceInput && "value" in distanceInput ? String(distanceInput.value).trim() : "";
+  const combined =
+    angleRaw !== "" && distanceRaw !== ""
+      ? `${angleRaw},${distanceRaw}`
+      : angleRaw;
+  const parsed = parseDialGuessValue(combined, distanceRaw !== "" ? undefined : 1);
+  if (!parsed.ok) {
     return { ok: false };
   }
-  const n = Number(raw);
-  if (!Number.isFinite(n)) {
-    return { ok: false };
-  }
-  if (n < 0 || n > 160) {
-    return { ok: false };
-  }
-  return { ok: true, value: String(n) };
-}
-
-function formatDialDegree(n) {
-  const rounded = Math.round(n * 100) / 100;
-  return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(2).replace(/\.?0+$/, "");
+  return { ok: true, value: formatDialGuessValue(parsed.guess), guess: parsed.guess };
 }
 
 function canPlayerClickDial(room, uid) {

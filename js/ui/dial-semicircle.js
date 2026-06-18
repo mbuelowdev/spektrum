@@ -1,8 +1,19 @@
-const GAME_DEG_MIN = 0;
-const GAME_DEG_MAX = 160;
+export const GAME_DEG_MIN = 0;
+export const GAME_DEG_MAX = 160;
 
 /** Reference size of assets/dial-background.png */
 export const DIAL_BG_IMAGE = { width: 1536, height: 1024 };
+
+const DIAL_PIN_HREF = "/assets/dial-pin.png";
+/** Pin asset is 12×13 px on dial-background.png — size in SVG viewBox units (0–100). */
+const DIAL_PIN_ASSET = { w: 12, h: 13 };
+const DIAL_PIN_SCALE = 2;
+const DIAL_PIN_SIZE = {
+  w: (DIAL_PIN_ASSET.w / DIAL_BG_IMAGE.width) * 100 * DIAL_PIN_SCALE,
+  h: (DIAL_PIN_ASSET.h / DIAL_BG_IMAGE.height) * 100 * DIAL_PIN_SCALE,
+};
+/** Nudge pin down in viewBox units so the artwork aligns with the click point. */
+const DIAL_PIN_Y_OFFSET = DIAL_PIN_SIZE.h * 0.33;
 
 /**
  * Default semicircle in SVG viewBox units (0–100), aligned to dial-background.png.
@@ -72,19 +83,23 @@ export function formatDialArcReadout(geometry) {
 }
 
 /**
+ * @typedef {{ degree: number, distance: number }} DialGuess
+ */
+
+/**
  * @param {HTMLElement} container
  * @param {object} room
  * @param {string} localPlayerUuid
- * @param {(degree: number) => void} [onDialDegreeClick]
- * @param {number | null} [localRayGameDegree]
+ * @param {(guess: DialGuess) => void} [onDialGuessClick]
+ * @param {DialGuess | null} [localGuess]
  * @param {{ cx: number, cy: number, r: number }} [arcGeometry]
  */
 export function renderDial(
   container,
   room,
   localPlayerUuid,
-  onDialDegreeClick,
-  localRayGameDegree,
+  onDialGuessClick,
+  localGuess,
   arcGeometry = DEFAULT_ARC_GEOMETRY,
 ) {
   const arc = normalizeArcGeometry(arcGeometry);
@@ -115,8 +130,8 @@ export function renderDial(
 
   const lineLayer = document.createElementNS("http://www.w3.org/2000/svg", "g");
   overlay.appendChild(lineLayer);
-  const markerLayer = document.createElementNS("http://www.w3.org/2000/svg", "g");
-  overlay.appendChild(markerLayer);
+  const pinLayer = document.createElementNS("http://www.w3.org/2000/svg", "g");
+  overlay.appendChild(pinLayer);
 
   if (clue) {
     const clueText = document.createElementNS("http://www.w3.org/2000/svg", "text");
@@ -129,61 +144,64 @@ export function renderDial(
     overlay.appendChild(clueText);
   }
 
-  function markerLine(gameDegree, className) {
-    const edge = polar(arc.cx, arc.cy, arc.r, gameToDialDeg(gameDegree));
-    const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
-    line.setAttribute("x1", String(arc.cx));
-    line.setAttribute("y1", String(arc.cy));
-    line.setAttribute("x2", String(edge.x));
-    line.setAttribute("y2", String(edge.y));
-    line.setAttribute("class", className);
-    return line;
+  function appendGuessVisual(point, pinClass, lineClass) {
+    lineLayer.appendChild(guessStringRay(arc.cx, arc.cy, point, lineClass));
+    pinLayer.appendChild(createDialPin(point, pinClass));
   }
 
-  if (showTarget && Number.isFinite(targetDeg)) {
-    markerLayer.appendChild(markerLine(targetDeg, "sp-target-dot"));
-  }
-
-  const avgGuessDeg = averageCurrentGuessingTeamGuess(room, guesses);
-  if (Number.isFinite(avgGuessDeg)) {
-    markerLayer.appendChild(markerLine(avgGuessDeg, "sp-team-avg-dot"));
+  function appendTargetVisual(point) {
+    lineLayer.appendChild(guessStringRay(arc.cx, arc.cy, point, "sp-guess-ray sp-target-ray"));
+    pinLayer.appendChild(createDialPin(point, "sp-dial-pin sp-dial-pin-target"));
   }
 
   for (const g of guesses) {
-    const degree = g && g.degree != null ? Number(g.degree) : NaN;
-    if (!Number.isFinite(degree)) continue;
-    markerLayer.appendChild(markerLine(degree, g.isPreview ? "sp-preview-dot" : "sp-guess-dot"));
-  }
-
-  let localMarker = null;
-  function drawLocalMarker(gameDegree) {
-    const edge = polar(arc.cx, arc.cy, arc.r, gameToDialDeg(gameDegree));
-    if (!localMarker) {
-      localMarker = document.createElementNS("http://www.w3.org/2000/svg", "line");
-      localMarker.setAttribute("class", "sp-dial-ray");
-      lineLayer.appendChild(localMarker);
+    const parsed = guessFromRecord(g);
+    if (!parsed) continue;
+    const uid = playerUuid(g.player);
+    if (localGuess && uid && uid === localPlayerUuid) {
+      continue;
     }
-    localMarker.setAttribute("x1", String(arc.cx));
-    localMarker.setAttribute("y1", String(arc.cy));
-    localMarker.setAttribute("x2", String(edge.x));
-    localMarker.setAttribute("y2", String(edge.y));
+    appendGuessVisual(
+      guessPointFromPolar(arc, parsed.degree, parsed.distance),
+      g.isPreview ? "sp-dial-pin sp-dial-pin-preview" : "sp-dial-pin sp-dial-pin-guess",
+      g.isPreview ? "sp-guess-ray sp-guess-ray-preview" : "sp-guess-ray sp-guess-ray-guess",
+    );
   }
 
-  if (Number.isFinite(localRayGameDegree)) {
-    drawLocalMarker(Number(localRayGameDegree));
+  function drawLocalPin(guess, point) {
+    pinLayer.querySelectorAll(".sp-dial-pin-local").forEach((node) => node.remove());
+    lineLayer.querySelectorAll(".sp-guess-ray-local").forEach((node) => node.remove());
+    if (!guess) return;
+    const pt = point ?? guessPointFromPolar(arc, guess.degree, guess.distance);
+    appendGuessVisual(pt, "sp-dial-pin sp-dial-pin-local", "sp-guess-ray sp-guess-ray-local");
   }
 
-  if (typeof onDialDegreeClick === "function") {
+  if (localGuess && Number.isFinite(localGuess.degree) && Number.isFinite(localGuess.distance)) {
+    drawLocalPin(localGuess);
+  }
+
+  if (showTarget && Number.isFinite(targetDeg)) {
+    appendTargetVisual(guessPointFromPolar(arc, targetDeg, 1));
+  }
+
+  if (typeof onDialGuessClick === "function") {
     overlay.classList.add("is-clickable");
     overlay.addEventListener("click", (ev) => {
       const point = svgPointFromEvent(overlay, ev);
       if (!point) return;
       if (!isPointInsideSemicircle(point.x, point.y, arc)) return;
-      const gameDeg = gameDegreeFromPoint(point.x, point.y, arc);
-      drawLocalMarker(gameDeg);
-      onDialDegreeClick(gameDeg);
+      const guess = guessFromPoint(point.x, point.y, arc);
+      drawLocalPin(guess, point);
+      onDialGuessClick(guess);
     });
   }
+
+  const centerPinLayer = document.createElementNS("http://www.w3.org/2000/svg", "g");
+  centerPinLayer.setAttribute("class", "sp-dial-pin-layer-center");
+  centerPinLayer.appendChild(
+    createDialPin({ x: arc.cx, y: arc.cy }, "sp-dial-pin sp-dial-pin-center", { anchor: "center" }),
+  );
+  overlay.appendChild(centerPinLayer);
 
   stage.appendChild(overlay);
   container.replaceChildren(stage);
@@ -201,6 +219,64 @@ function shouldShowTarget(room, localPlayerUuid) {
     (ap && localPlayerUuid && playerUuid(ap) === localPlayerUuid) ||
     gs === "STATE_04_REVEAL"
   );
+}
+
+/**
+ * Format guess for game-action `value`: angle (0–160) and normalized distance (0–1).
+ * @param {{ degree: number, distance: number }} guess
+ */
+export function formatDialGuessValue(guess) {
+  return `${formatDialNumber(guess.degree)},${formatDialNumber(guess.distance)}`;
+}
+
+/**
+ * Parse game-action `value` or room guess fields into angle + distance.
+ * @param {string | number | null | undefined} raw
+ * @param {number | null | undefined} [distanceFallback]
+ * @returns {{ ok: true, guess: DialGuess } | { ok: false }}
+ */
+export function parseDialGuessValue(raw, distanceFallback) {
+  const text = raw == null ? "" : String(raw).trim();
+  if (text === "") {
+    return { ok: false };
+  }
+  const parts = text.split(",");
+  const degree = Number(parts[0]);
+  if (!Number.isFinite(degree) || degree < GAME_DEG_MIN || degree > GAME_DEG_MAX) {
+    return { ok: false };
+  }
+  let distance = parts.length > 1 ? Number(parts[1]) : Number(distanceFallback);
+  if (!Number.isFinite(distance)) {
+    distance = 1;
+  }
+  if (distance < 0 || distance > 1) {
+    return { ok: false };
+  }
+  return {
+    ok: true,
+    guess: { degree: clampDeg(degree), distance: clampDistance(distance) },
+  };
+}
+
+/** @param {object | null | undefined} record */
+export function guessFromRecord(record) {
+  if (!record) return null;
+  const degree = record.degree != null ? Number(record.degree) : NaN;
+  if (!Number.isFinite(degree)) return null;
+  let distance = record.distance != null ? Number(record.distance) : NaN;
+  if (!Number.isFinite(distance)) {
+    const parsed = parseDialGuessValue(record.value);
+    distance = parsed.ok ? parsed.guess.distance : 1;
+  }
+  return {
+    degree: clampDeg(degree),
+    distance: clampDistance(distance),
+  };
+}
+
+export function formatDialNumber(n) {
+  const rounded = Math.round(n * 100) / 100;
+  return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(2).replace(/\.?0+$/, "");
 }
 
 /** Map dial degree (0–180) along the semicircle (left = 0, right = 180). */
@@ -237,6 +313,114 @@ function gameDegreeFromPoint(x, y, arc) {
   return clampDeg((dialDeg / 180) * GAME_DEG_MAX);
 }
 
+function distanceFromPoint(x, y, arc) {
+  const dx = x - arc.cx;
+  const dy = y - arc.cy;
+  return clampDistance(Math.sqrt(dx * dx + dy * dy) / arc.r);
+}
+
+/** @returns {DialGuess} */
+function guessFromPoint(x, y, arc) {
+  return {
+    degree: gameDegreeFromPoint(x, y, arc),
+    distance: distanceFromPoint(x, y, arc),
+  };
+}
+
+/** @param {{ cx: number, cy: number, r: number }} arc */
+function guessPointFromPolar(arc, gameDegree, distance) {
+  return polar(arc.cx, arc.cy, arc.r * clampDistance(distance), gameToDialDeg(gameDegree));
+}
+
+function guessStringRay(x1, y1, point, className) {
+  const group = document.createElementNS("http://www.w3.org/2000/svg", "g");
+  group.setAttribute("class", className);
+  group.setAttribute("pointer-events", "none");
+
+  const d = stringPathD(x1, y1, point.x, point.y, 0);
+  const dTwist = stringPathD(x1, y1, point.x, point.y, 1);
+
+  const shadow = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  shadow.setAttribute("d", d);
+  shadow.setAttribute("class", "sp-guess-ray-shadow");
+
+  const twist = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  twist.setAttribute("d", dTwist);
+  twist.setAttribute("class", "sp-guess-ray-twist");
+
+  const strand = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  strand.setAttribute("d", d);
+  strand.setAttribute("class", "sp-guess-ray-stroke");
+
+  group.appendChild(shadow);
+  group.appendChild(twist);
+  group.appendChild(strand);
+  return group;
+}
+
+/** Hanging-string path with gravity sag (parabolic approx.) — stable across repaints. */
+function stringPathD(x1, y1, x2, y2, strand = 0) {
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  const len = Math.hypot(dx, dy);
+  if (len < 0.05) {
+    return `M ${x1.toFixed(2)} ${y1.toFixed(2)} L ${x2.toFixed(2)} ${y2.toFixed(2)}`;
+  }
+
+  const px = -dy / len;
+  const py = dx / len;
+  const seed = stringSeed(x1, y1, x2, y2);
+  const phase = seed * Math.PI * 2 + strand * 1.85;
+  const segments = Math.max(8, Math.min(20, Math.round(len / 1.8)));
+  // Downward (+y) sag; grows ~linearly with span (catenary ≈ parabola for small sag).
+  const sagAmount = Math.min(3.7, len * 0.07 + len * len * 0.00056);
+  const strandShift = strand === 0 ? 0 : 0.045 + seed * 0.02;
+  const microAmp = strand === 0 ? 0.008 : 0.014;
+
+  let d = "";
+  for (let i = 0; i <= segments; i++) {
+    const t = i / segments;
+    const baseX = x1 + dx * t;
+    const baseY = y1 + dy * t;
+    const gravitySag = sagAmount * 4 * t * (1 - t);
+    const envelope = Math.sin(t * Math.PI);
+    const twist =
+      Math.sin(t * Math.PI * 1.3 + phase) * microAmp * envelope +
+      (stringSeed(i, seed, x2, y2) - 0.5) * microAmp * 0.35;
+    const offset = strandShift + twist;
+    const x = baseX + px * offset;
+    const y = baseY + gravitySag + py * offset;
+    d += i === 0 ? `M ${x.toFixed(2)} ${y.toFixed(2)}` : ` L ${x.toFixed(2)} ${y.toFixed(2)}`;
+  }
+  return d;
+}
+
+function stringSeed(a, b, c, d) {
+  const raw = Math.sin(a * 12.9898 + b * 78.233 + c * 37.719 + d * 19.17) * 43758.5453;
+  return raw - Math.floor(raw);
+}
+
+function createDialPin(point, className, options = {}) {
+  const anchor = options.anchor === "center" ? "center" : "tip";
+  const img = document.createElementNS("http://www.w3.org/2000/svg", "image");
+  img.setAttribute("href", DIAL_PIN_HREF);
+  img.setAttributeNS("http://www.w3.org/1999/xlink", "href", DIAL_PIN_HREF);
+  img.setAttribute("x", String(point.x - DIAL_PIN_SIZE.w / 2));
+  img.setAttribute(
+    "y",
+    String(
+      anchor === "center"
+        ? point.y - DIAL_PIN_SIZE.h / 2
+        : point.y - DIAL_PIN_SIZE.h + DIAL_PIN_Y_OFFSET,
+    ),
+  );
+  img.setAttribute("width", String(DIAL_PIN_SIZE.w));
+  img.setAttribute("height", String(DIAL_PIN_SIZE.h));
+  img.setAttribute("class", className);
+  img.setAttribute("pointer-events", "none");
+  return img;
+}
+
 function isPointInsideSemicircle(x, y, arc) {
   const dx = x - arc.cx;
   const dy = y - arc.cy;
@@ -244,57 +428,27 @@ function isPointInsideSemicircle(x, y, arc) {
   return dx * dx + dy * dy <= arc.r * arc.r;
 }
 
-function averageCurrentGuessingTeamGuess(room, guesses) {
-  const gs = room && room.gameState ? String(room.gameState) : "";
-  if (
-    gs !== "STATE_02_GUESS_ROUND" &&
-    gs !== "STATE_03_COUNTER_GUESS_ROUND" &&
-    gs !== "STATE_04_REVEAL"
-  ) {
-    return NaN;
-  }
-  const first = firstGuessingTeamByRound(room);
-  return averageTeamGuess(room, guesses, first);
-}
-
-function averageTeamGuess(room, guesses, team) {
-  const perPlayer = new Map();
-  for (const g of guesses) {
-    const uid = playerUuid(g.player);
-    if (!uid) continue;
-    if (teamForPlayer(room, uid) !== team) continue;
-    const d = g.degree != null ? Number(g.degree) : NaN;
-    if (!Number.isFinite(d)) continue;
-    perPlayer.set(uid, clampDeg(d));
-  }
-  if (!perPlayer.size) return NaN;
-  let sum = 0;
-  for (const value of perPlayer.values()) sum += value;
-  return sum / perPlayer.size;
-}
-
-function firstGuessingTeamByRound(room) {
-  const idx = Number(room && room.gameRoundIndex != null ? room.gameRoundIndex : 0);
-  return Number.isFinite(idx) && idx % 2 !== 0 ? "B" : "A";
-}
-
 function svgPointFromEvent(svg, ev) {
-  const rect = svg.getBoundingClientRect();
-  if (!rect.width || !rect.height) return null;
-  const viewBox = svg.viewBox && svg.viewBox.baseVal ? svg.viewBox.baseVal : null;
-  if (!viewBox) return null;
-  const sx = viewBox.width / rect.width;
-  const sy = viewBox.height / rect.height;
-  return {
-    x: (ev.clientX - rect.left) * sx + viewBox.x,
-    y: (ev.clientY - rect.top) * sy + viewBox.y,
-  };
+  if (typeof svg.createSVGPoint !== "function") return null;
+  const ctm = svg.getScreenCTM && svg.getScreenCTM();
+  if (!ctm || typeof ctm.inverse !== "function") return null;
+  const point = svg.createSVGPoint();
+  point.x = ev.clientX;
+  point.y = ev.clientY;
+  const local = point.matrixTransform(ctm.inverse());
+  return { x: local.x, y: local.y };
 }
 
 function clampDeg(degree) {
   if (degree < GAME_DEG_MIN) return GAME_DEG_MIN;
   if (degree > GAME_DEG_MAX) return GAME_DEG_MAX;
   return degree;
+}
+
+function clampDistance(distance) {
+  if (distance < 0) return 0;
+  if (distance > 1) return 1;
+  return distance;
 }
 
 function clampNumber(value, fallback, min, max) {
@@ -306,19 +460,6 @@ function clampNumber(value, fallback, min, max) {
 function round(value, digits) {
   const factor = 10 ** digits;
   return Math.round(value * factor) / factor;
-}
-
-function teamForPlayer(room, uid) {
-  if (!uid) return "";
-  const inA = Array.isArray(room.playersTeamA)
-    ? room.playersTeamA.some((p) => playerUuid(p) === uid)
-    : false;
-  if (inA) return "A";
-  const inB = Array.isArray(room.playersTeamB)
-    ? room.playersTeamB.some((p) => playerUuid(p) === uid)
-    : false;
-  if (inB) return "B";
-  return "";
 }
 
 function playerUuid(player) {

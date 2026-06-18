@@ -14,7 +14,6 @@ jobs:
             discord_channel_id: '1461803674144735252'
             deployment_user: 'root'
             deployment_host: 'mbuelow.dev'
-            build_commit_sha: null
         secrets:
             deployment_ssh_key: ${{ secrets.DEPLOYMENT_SSH_KEY }}
             discord_bot_token: ${{ secrets.DISCORD_BOT_TOKEN }}
