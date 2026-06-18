@@ -20,9 +20,6 @@
   /* Legacy aliases; keep for compatibility where still referenced. */
   --sp-team-a: var(--sp-team-a-bg);
   --sp-team-b: var(--sp-team-b-bg);
-  --sp-dial-1: rgba(205, 150, 105, 0.58);
-  --sp-dial-2: rgba(138, 141, 147, 0.5);
-  --sp-dial-3: rgba(112, 128, 150, 0.58);
   --sp-white: #ffffff;
   --sp-logo-fill: #f4f7fb;
   --sp-logo-stroke: #2d3340;
@@ -38,7 +35,6 @@
   --sp-primary-rgb: 143, 143, 150;
   --sp-primary-focus-ring: rgba(143, 143, 150, 0.35);
   --sp-radius: 0.5rem;
-  --sp-dial-size: min(92vw, 420px);
   /* Text fields — focus (replaces Bootstrap blue ring) */
   --sp-input-focus-border: rgba(255, 255, 255, 0.48);
   --sp-input-focus-ring: rgba(255, 255, 255, 0.2);
@@ -104,6 +100,20 @@ body {
   animation: spHomeBgParallax 4s ease-in-out infinite alternate;
 }
 
+.sp-privacy-view {
+  min-height: 100vh;
+  background-image:
+    linear-gradient(
+      to bottom,
+      rgba(10, 12, 16, 0.58),
+      rgba(10, 12, 16, 0.44)
+    ),
+    url("/assets/background-city-noir.png");
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+}
+
 @keyframes spHomeBgParallax {
   0% {
     background-position: 48% 50%;
@@ -117,20 +127,6 @@ body {
   .sp-home-view {
     animation-duration: 7s;
   }
-}
-
-.sp-privacy-view {
-  min-height: 100vh;
-  background-image:
-    linear-gradient(
-      to bottom,
-      rgba(10, 12, 16, 0.58),
-      rgba(10, 12, 16, 0.44)
-    ),
-    url("/assets/background-city-noir.png");
-  background-position: center;
-  background-size: cover;
-  background-repeat: no-repeat;
 }
 
 .sp-privacy-card {
@@ -490,11 +486,23 @@ a:hover {
 }
 
 /* Layout: game */
+html:has(.sp-game-main),
+body:has(.sp-game-main) {
+  overflow: hidden;
+}
+
+.sp-app:has(.sp-game-main) {
+  height: 100dvh;
+  max-height: 100dvh;
+  overflow: hidden;
+}
+
 .sp-game-main {
   display: flex;
   flex-direction: column;
   flex: 1 1 auto;
   min-height: 0;
+  overflow: hidden;
   padding-bottom: 0;
   padding-left: 0;
   padding-right: 0;
@@ -533,36 +541,36 @@ a:hover {
   overflow: hidden;
 }
 
-.sp-elliptical-dial {
+.sp-dial {
   position: relative;
   width: 100%;
   aspect-ratio: 3 / 2;
 }
 
-.sp-elliptical-dial-overlay {
+.sp-dial-overlay {
   width: 100%;
   height: 100%;
   display: block;
 }
 
-.sp-elliptical-dial-overlay.is-clickable {
+.sp-dial-overlay.is-clickable {
   cursor: pointer;
 }
 
-.sp-elliptical-dial-hit {
+.sp-dial-hit-outline {
   fill: none;
   stroke: rgba(255, 255, 255, 0.24);
   stroke-width: 0.65;
   stroke-dasharray: 1.2 1.8;
 }
 
-.sp-elliptical-dial-hit-area {
+.sp-dial-hit-area {
   fill: rgba(255, 255, 255, 0.03);
   stroke: transparent;
   stroke-linecap: round;
 }
 
-.sp-elliptical-ray {
+.sp-dial-ray {
   stroke: rgba(255, 255, 255, 0.82);
   stroke-width: 0.95;
   stroke-linecap: round;
@@ -592,7 +600,7 @@ a:hover {
   stroke-linecap: round;
 }
 
-.sp-elliptical-clue-text {
+.sp-dial-clue-text {
   fill: #111111;
   font-size: 4.8px;
   font-family: Arial, Helvetica, sans-serif;

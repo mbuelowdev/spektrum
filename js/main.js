@@ -1,5 +1,5 @@
 import * as api from "./api.js";
-import { initBackgroundMusic } from "./bg-music.js";
+import { initBackgroundMusic, setRoomViewAudio } from "./bg-music.js";
 import { startHeartbeat } from "./heartbeat.js";
 import { isPlayerInRoom } from "./gameLogic.js";
 import { navigateHome, navigateToRoom, parsePath } from "./router.js";
@@ -35,6 +35,7 @@ async function route() {
   applyPlayerOverridesFromQuery();
 
   const loc = parsePath(location.pathname);
+  setRoomViewAudio(loc.type === "room");
   if (loc.type === "unknown") {
     app.innerHTML = `
       <div class="container py-5 text-center">

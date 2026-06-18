@@ -16,7 +16,7 @@ import {
 import { subscribeRoom } from "../mercure.js";
 import { navigateHome } from "../router.js";
 import * as storage from "../storage.js";
-import { renderDial } from "./dial-elliptical.js";
+import { renderDial } from "./dial-semicircle.js";
 import { openSettingsModal } from "./settings-modal.js";
 import { showToast } from "./toast.js";
 
@@ -161,6 +161,37 @@ export async function mountGame(root, roomUuid, player) {
     });
   }
 
+  function buildDialClickHandler(r, pl) {
+    if (!canPlayerClickDial(r, pl.localUuid)) return undefined;
+    return async (degree) => {
+      localDialRayDegree = degree;
+      const value = formatDialDegree(degree);
+      root.querySelectorAll(".sp-sidebar-controls .sp-deg").forEach((input) => {
+        if ("value" in input) {
+          input.value = value;
+        }
+      });
+      try {
+        await gameAction(r.uuid, pl.localUuid, "SUBMIT_PREVIEW_GUESS", value);
+      } catch (e) {
+        showToast(e.message || "Could not save preview", "danger");
+      }
+    };
+  }
+
+  function paintDial(r, pl) {
+    const dialMount = root.querySelector("#sp-dial");
+    if (!dialMount) return;
+    dialMount.innerHTML = "";
+    renderDial(
+      dialMount,
+      r,
+      pl.localUuid,
+      buildDialClickHandler(r, pl),
+      localDialRayDegree,
+    );
+  }
+
   function updateContent(r, pl) {
     const desk = root.querySelector("#sp-sidebar-desktop");
     const mob = root.querySelector("#sp-sidebar-mobile");
@@ -169,27 +200,7 @@ export async function mountGame(root, roomUuid, player) {
     if (mob) mob.innerHTML = html;
     wireSidebar(r, pl);
 
-    const dialMount = root.querySelector("#sp-dial");
-    if (dialMount) {
-      dialMount.innerHTML = "";
-      const dialClickHandler = canPlayerClickDial(r, pl.localUuid)
-        ? async (degree) => {
-            localDialRayDegree = degree;
-            const value = formatDialDegree(degree);
-            root.querySelectorAll(".sp-sidebar-controls .sp-deg").forEach((input) => {
-              if ("value" in input) {
-                input.value = value;
-              }
-            });
-            try {
-              await gameAction(r.uuid, pl.localUuid, "SUBMIT_PREVIEW_GUESS", value);
-            } catch (e) {
-              showToast(e.message || "Could not save preview", "danger");
-            }
-          }
-        : undefined;
-      renderDial(dialMount, r, pl.localUuid, dialClickHandler, localDialRayDegree);
-    }
+    paintDial(r, pl);
 
     root.querySelectorAll(".sp-sidebar-controls").forEach((panel) => {
       const startWrap = panel.querySelector(".sp-admin-start");
@@ -214,23 +225,7 @@ export async function mountGame(root, roomUuid, player) {
       renderActions(actions, r, pl, {
         onPreviewRemoved: () => {
           localDialRayDegree = null;
-          const dialMountNow = root.querySelector("#sp-dial");
-          if (!dialMountNow) return;
-          dialMountNow.innerHTML = "";
-          renderDial(dialMountNow, r, pl.localUuid, async (degree) => {
-            localDialRayDegree = degree;
-            const value = formatDialDegree(degree);
-            root.querySelectorAll(".sp-sidebar-controls .sp-deg").forEach((input) => {
-              if ("value" in input) {
-                input.value = value;
-              }
-            });
-            try {
-              await gameAction(r.uuid, pl.localUuid, "SUBMIT_PREVIEW_GUESS", value);
-            } catch (e) {
-              showToast(e.message || "Could not save preview", "danger");
-            }
-          }, localDialRayDegree);
+          paintDial(r, pl);
         },
       });
     });

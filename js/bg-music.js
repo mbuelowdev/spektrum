@@ -1,9 +1,14 @@
 import * as storage from "./storage.js";
 
 const SRC = "/assets/noir-background.mp3";
+const ROOM_AMBIENCE_SRC = "/assets/background-sounds-01.mp3";
 
 /** @type {HTMLAudioElement | null} */
 let audio = null;
+/** @type {HTMLAudioElement | null} */
+let roomAmbienceAudio = null;
+/** @type {boolean} */
+let isRoomViewActive = false;
 
 /** @type {boolean} */
 let resumeListenersAttached = false;
@@ -14,6 +19,15 @@ function ensureAudio() {
   audio.loop = true;
   audio.preload = "auto";
   return audio;
+}
+
+function ensureRoomAmbienceAudio() {
+  if (roomAmbienceAudio) return roomAmbienceAudio;
+  roomAmbienceAudio = new Audio(ROOM_AMBIENCE_SRC);
+  roomAmbienceAudio.loop = true;
+  roomAmbienceAudio.preload = "auto";
+  roomAmbienceAudio.volume = 1;
+  return roomAmbienceAudio;
 }
 
 function applyVolumeFromStorage() {
@@ -37,7 +51,7 @@ function attachResumeOnUserGesture() {
       detachResumeListeners(tryResume);
       return;
     }
-    const a = ensureAudio();
+    const a = isRoomViewActive ? ensureRoomAmbienceAudio() : ensureAudio();
     void a
       .play()
       .then(() => {
@@ -54,6 +68,7 @@ function attachResumeOnUserGesture() {
  */
 export function initBackgroundMusic() {
   ensureAudio();
+  ensureRoomAmbienceAudio();
   syncBackgroundMusic();
 }
 
@@ -67,11 +82,27 @@ export function applyMusicVolume() {
 export function syncBackgroundMusic() {
   applyVolumeFromStorage();
   const a = ensureAudio();
-  if (storage.getBackgroundMusicEnabled()) {
-    void a.play().catch(() => {
-      attachResumeOnUserGesture();
-    });
-  } else {
-    a.pause();
+  const roomAmbience = ensureRoomAmbienceAudio();
+  roomAmbience.volume = 1;
+
+  roomAmbience.pause();
+  a.pause();
+
+  if (!storage.getBackgroundMusicEnabled()) {
+    return;
   }
+
+  const active = isRoomViewActive ? roomAmbience : a;
+  void active.play().catch(() => {
+    attachResumeOnUserGesture();
+  });
+}
+
+/**
+ * Enable or disable room ambience based on current route.
+ * @param {boolean} inRoomView
+ */
+export function setRoomViewAudio(inRoomView) {
+  isRoomViewActive = Boolean(inRoomView);
+  syncBackgroundMusic();
 }
