@@ -336,12 +336,32 @@ function sidebarHtml(room, pl) {
     <div class="d-flex flex-wrap gap-2 gap-sm-3 justify-content-between align-items-center small text-muted mb-2">
       <span class="text-nowrap">Round ${(Number(room.gameRoundIndex) || 0) + 1}</span>
     </div>
-    <p class="small text-muted mb-0 sp-sidebar-game-state">State: ${escapeHtml(room.gameState || "—")}</p>
+    ${sidebarClueHtml(room)}
     <div class="sp-sidebar-controls mt-3">
       <div class="sp-admin-start"></div>
       <div class="sp-actions mt-3"></div>
     </div>
   `;
+}
+
+function sidebarClueHtml(room) {
+  const clue = room.gameCluegiverGuessText ? String(room.gameCluegiverGuessText).trim() : "";
+  if (!clue) return "";
+  const gs = room.gameState || "";
+  if (
+    gs !== "STATE_02_GUESS_ROUND" &&
+    gs !== "STATE_03_COUNTER_GUESS_ROUND" &&
+    gs !== "STATE_04_REVEAL"
+  ) {
+    return "";
+  }
+  return `
+    <div class="sp-sidebar-clue mt-3">
+      <div class="sp-sidebar-clue-card">
+        <p class="sp-sidebar-clue-label">Clue</p>
+        <p class="sp-sidebar-clue-text">${escapeHtml(clue)}</p>
+      </div>
+    </div>`;
 }
 
 function playerRow(p, myUuid, activeUuid) {

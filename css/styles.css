@@ -383,10 +383,6 @@ a:hover {
   font-family: Arial, Helvetica, sans-serif;
 }
 
-.sp-sidebar-game-state {
-  font-family: Arial, Helvetica, sans-serif;
-}
-
 #toast-container .toast {
   font-family: Arial, Helvetica, sans-serif;
 }
@@ -551,6 +547,8 @@ body:has(.sp-game-main) {
   width: 100%;
   height: 100%;
   display: block;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .sp-dial-overlay.is-clickable {
@@ -581,42 +579,30 @@ body:has(.sp-game-main) {
 }
 
 .sp-guess-ray-stroke,
-.sp-guess-ray-shadow,
-.sp-guess-ray-twist {
+.sp-guess-ray-shadow {
   fill: none;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
 
 .sp-guess-ray-shadow {
-  stroke: rgba(0, 0, 0, 0.24);
+  stroke: rgba(0, 0, 0, 0.22);
   stroke-width: 0.36;
 }
 
-.sp-guess-ray-twist {
-  stroke: rgba(66, 66, 66, 0.48);
-  stroke-width: 0.2;
+.sp-guess-ray-strand-dark {
+  stroke: rgba(28, 28, 28, 0.92);
+  stroke-width: 0.46;
 }
 
-.sp-guess-ray-stroke {
-  stroke: rgba(36, 36, 36, 0.96);
-  stroke-width: 0.42;
+.sp-guess-ray-strand-light {
+  stroke: rgba(255, 255, 255, 0.22);
+  stroke-width: 0.3;
 }
 
-.sp-target-ray .sp-guess-ray-shadow {
-  stroke: rgba(45, 10, 10, 0.32);
-}
-
-.sp-target-ray .sp-guess-ray-twist {
-  stroke: rgba(92, 22, 22, 0.52);
-}
-
-.sp-target-ray .sp-guess-ray-stroke {
-  stroke: rgba(120, 18, 18, 0.96);
-}
-
-.sp-dial-pin-target {
-  filter: brightness(0.5) sepia(1) saturate(6) hue-rotate(318deg) brightness(0.78);
+.sp-target-ray .sp-target-ray-stripe {
+  stroke: url(#sp-target-stripe);
+  stroke-width: 0.46;
 }
 
 .sp-dial-pin {
@@ -651,15 +637,27 @@ body:has(.sp-game-main) {
   stroke-linecap: round;
 }
 
-.sp-dial-clue-text {
+.sp-dial-card-text {
   fill: #111111;
-  font-size: 4.8px;
+  font-size: 3.4px;
   font-family: "Limelight", sans-serif;
   font-weight: 400;
   font-style: normal;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
   pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.sp-dial-card-values {
+  opacity: 0.55;
+}
+.sp-dial-card-divider {
+  stroke: #111111;
+  stroke-width: 0.32;
+  stroke-linecap: round;
+  pointer-events: none;
+  opacity: 0.50;
 }
 .sp-dial-labels {
   display: flex;
@@ -671,12 +669,41 @@ body:has(.sp-game-main) {
   padding: 0 0.15rem;
   gap: 0.5rem;
 }
+.sp-dial-labels-layout-only {
+  visibility: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+}
 .sp-dial-labels span {
   max-width: 45%;
   line-height: 1.3;
 }
 .sp-dial-labels .end {
   text-align: end;
+}
+.sp-sidebar-clue-card {
+  background: color-mix(in srgb, var(--sp-surface-2) 88%, var(--sp-primary) 12%);
+  border: 1px solid color-mix(in srgb, var(--sp-border) 70%, var(--sp-text) 30%);
+  border-radius: var(--sp-radius);
+  padding: 1.1rem 0.9rem;
+  text-align: center;
+  box-shadow: 0 4px 14px var(--sp-shadow);
+}
+.sp-sidebar-clue-label {
+  margin: 0 0 0.55rem;
+  font-size: 0.68rem;
+  font-family: Arial, Helvetica, sans-serif;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--sp-text-muted);
+}
+.sp-sidebar-clue-text {
+  margin: 0;
+  font-family: "Limelight", sans-serif;
+  font-size: clamp(1.35rem, 2.8vw, 1.65rem);
+  line-height: 1.25;
+  color: var(--sp-text);
 }
 /* Sidebar desktop */
 @media (min-width: 768px) {

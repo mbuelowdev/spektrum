@@ -106,7 +106,6 @@ export function renderDial(
   const card = room.gameActiveCard;
   const leftLabel = card && card.valueLeft ? card.valueLeft : "—";
   const rightLabel = card && card.valueRight ? card.valueRight : "—";
-  const clue = room && room.gameCluegiverGuessText ? String(room.gameCluegiverGuessText).trim() : "";
   const guesses = Array.isArray(room.gameGuesses) ? room.gameGuesses : [];
   const targetDeg = room.gameTargetDegree != null ? Number(room.gameTargetDegree) : NaN;
   const showTarget = shouldShowTarget(room, localPlayerUuid);
@@ -117,6 +116,7 @@ export function renderDial(
   const overlay = document.createElementNS("http://www.w3.org/2000/svg", "svg");
   overlay.setAttribute("viewBox", "0 0 100 100");
   overlay.setAttribute("class", "sp-dial-overlay");
+  ensureTargetStripePattern(overlay);
 
   const arcOutline = document.createElementNS("http://www.w3.org/2000/svg", "path");
   arcOutline.setAttribute("d", semicircleArcPathD(arc.cx, arc.cy, arc.r));
@@ -133,16 +133,11 @@ export function renderDial(
   const pinLayer = document.createElementNS("http://www.w3.org/2000/svg", "g");
   overlay.appendChild(pinLayer);
 
-  if (clue) {
-    const clueText = document.createElementNS("http://www.w3.org/2000/svg", "text");
-    clueText.setAttribute("x", String(arc.cx));
-    clueText.setAttribute("y", String(arc.cy - arc.r * 0.35));
-    clueText.setAttribute("text-anchor", "middle");
-    clueText.setAttribute("dominant-baseline", "middle");
-    clueText.setAttribute("class", "sp-dial-clue-text");
-    clueText.textContent = clue;
-    overlay.appendChild(clueText);
-  }
+  const cardTextY = arc.cy - arc.r * DIAL_CARD_TEXT_RADIUS_RATIO;
+
+  const cardGroup = createCardValueGroup(leftLabel, rightLabel);
+  cardGroup.setAttribute("transform", `translate(${arc.cx}, ${cardTextY})`);
+  overlay.appendChild(cardGroup);
 
   function appendGuessVisual(point, pinClass, lineClass) {
     lineLayer.appendChild(guessStringRay(arc.cx, arc.cy, point, lineClass));
@@ -151,7 +146,7 @@ export function renderDial(
 
   function appendTargetVisual(point) {
     lineLayer.appendChild(guessStringRay(arc.cx, arc.cy, point, "sp-guess-ray sp-target-ray"));
-    pinLayer.appendChild(createDialPin(point, "sp-dial-pin sp-dial-pin-target"));
+    pinLayer.appendChild(createDialPin(point, "sp-dial-pin sp-dial-pin-guess"));
   }
 
   for (const g of guesses) {
@@ -207,8 +202,9 @@ export function renderDial(
   container.replaceChildren(stage);
 
   const labels = document.createElement("div");
-  labels.className = "sp-dial-labels";
-  labels.innerHTML = `<span class="start">${escapeHtml(leftLabel)}</span><span class="end">${escapeHtml(rightLabel)}</span>`;
+  labels.className = "sp-dial-labels sp-dial-labels-layout-only";
+  labels.setAttribute("aria-hidden", "true");
+  labels.innerHTML = `<span class="start">&nbsp;</span><span class="end">&nbsp;</span>`;
   container.appendChild(labels);
 }
 
@@ -343,19 +339,59 @@ function guessStringRay(x1, y1, point, className) {
   const shadow = document.createElementNS("http://www.w3.org/2000/svg", "path");
   shadow.setAttribute("d", d);
   shadow.setAttribute("class", "sp-guess-ray-shadow");
-
-  const twist = document.createElementNS("http://www.w3.org/2000/svg", "path");
-  twist.setAttribute("d", dTwist);
-  twist.setAttribute("class", "sp-guess-ray-twist");
-
-  const strand = document.createElementNS("http://www.w3.org/2000/svg", "path");
-  strand.setAttribute("d", d);
-  strand.setAttribute("class", "sp-guess-ray-stroke");
-
   group.appendChild(shadow);
-  group.appendChild(twist);
-  group.appendChild(strand);
+
+  if (className.includes("sp-target-ray")) {
+    const stripeStrand = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    stripeStrand.setAttribute("d", d);
+    stripeStrand.setAttribute("class", "sp-guess-ray-stroke sp-target-ray-stripe");
+    group.appendChild(stripeStrand);
+    return group;
+  }
+
+  const darkStrand = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  darkStrand.setAttribute("d", d);
+  darkStrand.setAttribute("class", "sp-guess-ray-stroke sp-guess-ray-strand-dark");
+
+  const lightStrand = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  lightStrand.setAttribute("d", dTwist);
+  lightStrand.setAttribute("class", "sp-guess-ray-stroke sp-guess-ray-strand-light");
+
+  group.appendChild(darkStrand);
+  group.appendChild(lightStrand);
   return group;
+}
+
+/** Diagonal stripe tile for target string stroke (fixed screen angle, not path-aligned dashes). */
+function ensureTargetStripePattern(svg) {
+  let defs = svg.querySelector("defs");
+  if (!defs) {
+    defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
+    svg.insertBefore(defs, svg.firstChild);
+  }
+  if (defs.querySelector("#sp-target-stripe")) return;
+
+  const pattern = document.createElementNS("http://www.w3.org/2000/svg", "pattern");
+  pattern.setAttribute("id", "sp-target-stripe");
+  pattern.setAttribute("patternUnits", "userSpaceOnUse");
+  pattern.setAttribute("width", "2.6");
+  pattern.setAttribute("height", "2.6");
+  pattern.setAttribute("patternTransform", "rotate(68)");
+
+  const dark = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+  dark.setAttribute("width", "2.6");
+  dark.setAttribute("height", "2.6");
+  dark.setAttribute("fill", "#242424");
+
+  const light = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+  light.setAttribute("x", "1.65");
+  light.setAttribute("width", "0.95");
+  light.setAttribute("height", "2.6");
+  light.setAttribute("fill", "#8a8682");
+
+  pattern.appendChild(dark);
+  pattern.appendChild(light);
+  defs.appendChild(pattern);
 }
 
 /** Hanging-string path with gravity sag (parabolic approx.) — stable across repaints. */
@@ -370,12 +406,14 @@ function stringPathD(x1, y1, x2, y2, strand = 0) {
   const px = -dy / len;
   const py = dx / len;
   const seed = stringSeed(x1, y1, x2, y2);
-  const phase = seed * Math.PI * 2 + strand * 1.85;
+  const phase = seed * Math.PI * 2 + strand * 2.35;
   const segments = Math.max(8, Math.min(20, Math.round(len / 1.8)));
   // Downward (+y) sag; grows ~linearly with span (catenary ≈ parabola for small sag).
   const sagAmount = Math.min(3.7, len * 0.07 + len * len * 0.00056);
-  const strandShift = strand === 0 ? 0 : 0.045 + seed * 0.02;
-  const microAmp = strand === 0 ? 0.008 : 0.014;
+  const strandSep = 0.09;
+  const strandShift = strand === 0 ? -strandSep * 0.58 : strandSep * 0.58;
+  const microAmp = 0.028;
+  const weaveFreq = 2.1;
 
   let d = "";
   for (let i = 0; i <= segments; i++) {
@@ -385,7 +423,7 @@ function stringPathD(x1, y1, x2, y2, strand = 0) {
     const gravitySag = sagAmount * 4 * t * (1 - t);
     const envelope = Math.sin(t * Math.PI);
     const twist =
-      Math.sin(t * Math.PI * 1.3 + phase) * microAmp * envelope +
+      Math.sin(t * Math.PI * weaveFreq + phase) * microAmp * envelope +
       (stringSeed(i, seed, x2, y2) - 0.5) * microAmp * 0.35;
     const offset = strandShift + twist;
     const x = baseX + px * offset;
@@ -466,8 +504,85 @@ function playerUuid(player) {
   return player && player.uuid ? player.uuid : "";
 }
 
-function escapeHtml(text) {
-  const div = document.createElement("div");
-  div.textContent = text;
-  return div.innerHTML;
+/** Halfway between the semicircle base (cy) and apex (cy − r). */
+const DIAL_CARD_TEXT_RADIUS_RATIO = 0.5;
+const DIAL_CARD_FONT_SIZE = 3.4;
+const DIAL_CARD_LINE_HEIGHT = DIAL_CARD_FONT_SIZE * 1.12;
+const DIAL_CARD_LABEL_MAX_CHARS = 10;
+const DIAL_CARD_DIVIDER_HEIGHT = DIAL_CARD_FONT_SIZE * 9;
+const DIAL_CARD_LABEL_GUTTER = 4.2;
+
+function wrapDialCardLabel(text, maxChars = DIAL_CARD_LABEL_MAX_CHARS) {
+  const normalized = String(text ?? "").trim() || "—";
+  const words = normalized.split(/\s+/);
+  /** @type {string[]} */
+  const lines = [];
+  let current = "";
+
+  for (const word of words) {
+    if (word.length > maxChars) {
+      if (current) {
+        lines.push(current);
+        current = "";
+      }
+      for (let i = 0; i < word.length; i += maxChars) {
+        lines.push(word.slice(i, i + maxChars));
+      }
+      continue;
+    }
+    const next = current ? `${current} ${word}` : word;
+    if (next.length <= maxChars) {
+      current = next;
+    } else {
+      if (current) lines.push(current);
+      current = word;
+    }
+  }
+  if (current) lines.push(current);
+  return lines.length ? lines : ["—"];
+}
+
+function createWrappedCardValueText(lines, anchor, x, side) {
+  const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+  text.setAttribute("text-anchor", anchor);
+  text.setAttribute("class", `sp-dial-card-text sp-dial-card-value-${side}`);
+
+  const blockOffset = ((lines.length - 1) * DIAL_CARD_LINE_HEIGHT) / 2;
+  lines.forEach((line, index) => {
+    const tspan = document.createElementNS("http://www.w3.org/2000/svg", "tspan");
+    tspan.setAttribute("x", String(x));
+    if (index === 0) {
+      tspan.setAttribute("y", String(-blockOffset));
+    } else {
+      tspan.setAttribute("dy", String(DIAL_CARD_LINE_HEIGHT));
+    }
+    tspan.textContent = line;
+    text.appendChild(tspan);
+  });
+  return text;
+}
+
+function createCardValueGroup(leftLabel, rightLabel) {
+  const group = document.createElementNS("http://www.w3.org/2000/svg", "g");
+  group.setAttribute("class", "sp-dial-card-values");
+
+  const leftLines = wrapDialCardLabel(leftLabel);
+  const rightLines = wrapDialCardLabel(rightLabel);
+
+  group.appendChild(
+    createWrappedCardValueText(leftLines, "end", -DIAL_CARD_LABEL_GUTTER, "left"),
+  );
+
+  const divider = document.createElementNS("http://www.w3.org/2000/svg", "line");
+  divider.setAttribute("x1", "0");
+  divider.setAttribute("y1", String(-DIAL_CARD_DIVIDER_HEIGHT / 2));
+  divider.setAttribute("x2", "0");
+  divider.setAttribute("y2", String(DIAL_CARD_DIVIDER_HEIGHT / 2));
+  divider.setAttribute("class", "sp-dial-card-divider");
+
+  group.appendChild(divider);
+  group.appendChild(
+    createWrappedCardValueText(rightLines, "start", DIAL_CARD_LABEL_GUTTER, "right"),
+  );
+  return group;
 }
