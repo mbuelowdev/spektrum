@@ -11,6 +11,7 @@ import {
   firstGuessingTeam,
   isActiveCluegiver,
   isPlayerInRoom,
+  playerHasFinalGuess,
   playerId,
 } from "../gameLogic.js";
 import { subscribeRoom } from "../mercure.js";
@@ -203,7 +204,7 @@ export async function mountGame(root, roomUuid, player) {
       r,
       pl.localUuid,
       buildDialClickHandler(r, pl),
-      localDialGuess,
+      playerHasFinalGuess(r, pl.localUuid) ? null : localDialGuess,
     );
   }
 
@@ -250,6 +251,11 @@ export async function mountGame(root, roomUuid, player) {
         onGuessChanged: (guess) => {
           localDialGuess = guess;
           paintDial(r, pl);
+        },
+        onGuessLocked: (guess, value) => {
+          applyOptimisticFinalGuess(r, pl.localUuid, guess, value);
+          localDialGuess = null;
+          updateContent(r, pl);
         },
       });
     });
@@ -495,6 +501,7 @@ function renderGuessRound(container, room, uid, gs, callbacks = {}) {
     return;
   }
 
+  const guessLocked = playerHasFinalGuess(room, uid);
   const initialGuess = guessFieldInitialGuess(room, uid);
   const initialAngle = initialGuess ? escapeAttr(formatDialNumber(initialGuess.degree)) : "";
   const initialDistance = initialGuess ? escapeAttr(formatDialNumber(initialGuess.distance)) : "";
@@ -519,6 +526,19 @@ function renderGuessRound(container, room, uid, gs, callbacks = {}) {
   const spect = !team;
   if (spect) {
     finalBtn?.classList.add("d-none");
+  }
+  if (guessLocked) {
+    previewBtn?.classList.add("d-none");
+    removeBtn?.classList.add("d-none");
+    finalBtn?.classList.add("d-none");
+    angleInput?.setAttribute("disabled", "true");
+    distanceInput?.setAttribute("disabled", "true");
+    container.querySelector(".small.text-muted.mb-2")?.remove();
+    container.insertAdjacentHTML(
+      "afterbegin",
+      `<p class="small text-muted text-center mb-2">Guess locked in — waiting for other players.</p>`,
+    );
+    return;
   }
   if (!canGuess && !spect) {
     previewBtn?.classList.add("d-none");
@@ -576,8 +596,8 @@ function renderGuessRound(container, room, uid, gs, callbacks = {}) {
     }
     try {
       await gameAction(room.uuid, uid, "SUBMIT_GUESS", parsed.value);
-      if (typeof callbacks.onGuessChanged === "function") {
-        callbacks.onGuessChanged(parsed.guess);
+      if (typeof callbacks.onGuessLocked === "function") {
+        callbacks.onGuessLocked(parsed.guess, parsed.value);
       }
       showToast("Guess locked", "success");
     } catch (e) {
@@ -585,6 +605,23 @@ function renderGuessRound(container, room, uid, gs, callbacks = {}) {
     }
   });
 
+}
+
+function applyOptimisticFinalGuess(room, playerUuid, guess, value) {
+  if (!Array.isArray(room.gameGuesses)) {
+    room.gameGuesses = [];
+  }
+  room.gameGuesses = room.gameGuesses.filter((g) => {
+    if (!g || !g.isPreview || !g.player) return true;
+    return playerId(g.player) !== playerUuid;
+  });
+  room.gameGuesses.push({
+    player: { uuid: playerUuid },
+    degree: guess.degree,
+    distance: guess.distance,
+    isPreview: false,
+    value,
+  });
 }
 
 /** Last guess this player has in `gameGuesses` (keeps fields filled after submit / Mercure refresh). */
@@ -616,6 +653,7 @@ function parseGuessFromInputs(angleInput, distanceInput) {
 
 function canPlayerClickDial(room, uid) {
   if (!uid || !isPlayerInRoom(room, uid)) return false;
+  if (playerHasFinalGuess(room, uid)) return false;
   if (isActiveCluegiver(room, uid)) return false;
   const gs = room.gameState || "";
   if (gs !== "STATE_02_GUESS_ROUND" && gs !== "STATE_03_COUNTER_GUESS_ROUND") {

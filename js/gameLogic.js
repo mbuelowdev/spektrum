@@ -68,6 +68,14 @@ export function canSwitchTeam(room) {
   return gs == null || gs === "";
 }
 
+/** Whether this player has locked in a non-preview guess for the current round. */
+export function playerHasFinalGuess(room, playerUuid) {
+  if (!room || !playerUuid) return false;
+  return (room.gameGuesses || []).some(
+    (g) => g && !g.isPreview && g.player && playerId(g.player) === playerUuid,
+  );
+}
+
 /** Final guesses by player uuid for preview collapse */
 export function guessesByPlayer(room) {
   const map = new Map();
