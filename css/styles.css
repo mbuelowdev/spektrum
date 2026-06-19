@@ -654,8 +654,11 @@ body:has(.sp-game-main) {
 .sp-dial-clue-text {
   fill: #111111;
   font-size: 4.8px;
-  font-family: Arial, Helvetica, sans-serif;
-  font-weight: 500;
+  font-family: "Limelight", sans-serif;
+  font-weight: 400;
+  font-style: normal;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
   pointer-events: none;
 }
 .sp-dial-labels {
