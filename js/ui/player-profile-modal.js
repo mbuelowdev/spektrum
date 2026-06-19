@@ -113,7 +113,7 @@ export function openPlayerProfileModal(opts) {
       window.location.reload();
     });
 
-    wrap.querySelector("#sp-profile-save")?.addEventListener("click", () => {
+    const saveProfile = () => {
       const nameEl = /** @type {HTMLInputElement | null} */ (wrap.querySelector("#sp-profile-name"));
       const nextName = storage.normalizePlayerName(nameEl?.value || "");
       if (!nextName) {
@@ -138,7 +138,14 @@ export function openPlayerProfileModal(opts) {
       syncBackgroundMusic();
       opts.onSaved?.({ name: nextName });
       finish({ name: nextName });
+    };
+
+    wrap.querySelector("form")?.addEventListener("submit", (e) => {
+      e.preventDefault();
+      saveProfile();
     });
+
+    wrap.querySelector("#sp-profile-save")?.addEventListener("click", saveProfile);
 
     modal.show();
     el.addEventListener(
