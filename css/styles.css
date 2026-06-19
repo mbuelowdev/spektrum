@@ -600,6 +600,21 @@ body:has(.sp-game-main) {
   stroke-width: 0.3;
 }
 
+.sp-guess-ray-counter .sp-guess-ray-shadow {
+  stroke: rgba(0, 0, 0, 0.17);
+  stroke-width: 0.34;
+}
+
+.sp-guess-ray-counter .sp-guess-ray-strand-dark {
+  stroke: rgba(70, 67, 64, 0.79);
+  stroke-width: 0.41;
+}
+
+.sp-guess-ray-counter .sp-guess-ray-strand-light {
+  stroke: rgba(255, 255, 255, 0.32);
+  stroke-width: 0.33;
+}
+
 .sp-target-ray .sp-target-ray-stripe {
   stroke: url(#sp-target-stripe);
   stroke-width: 0.46;

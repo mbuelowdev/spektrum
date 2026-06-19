@@ -1,3 +1,5 @@
+import { counterTeam, findPlayerTeam } from "../gameLogic.js";
+
 export const GAME_DEG_MIN = 0;
 export const GAME_DEG_MAX = 160;
 
@@ -139,8 +141,8 @@ export function renderDial(
   cardGroup.setAttribute("transform", `translate(${arc.cx}, ${cardTextY})`);
   overlay.appendChild(cardGroup);
 
-  function appendGuessVisual(point, pinClass, lineClass) {
-    lineLayer.appendChild(guessStringRay(arc.cx, arc.cy, point, lineClass));
+  function appendGuessVisual(point, pinClass, lineClass, counterTeamStyle = false) {
+    lineLayer.appendChild(guessStringRay(arc.cx, arc.cy, point, lineClass, counterTeamStyle));
     pinLayer.appendChild(createDialPin(point, pinClass));
   }
 
@@ -156,10 +158,12 @@ export function renderDial(
     if (localGuess && uid && uid === localPlayerUuid) {
       continue;
     }
+    const counterTeamStyle = isCounterTeamPlayer(room, uid);
     appendGuessVisual(
       guessPointFromPolar(arc, parsed.degree, parsed.distance),
       g.isPreview ? "sp-dial-pin sp-dial-pin-preview" : "sp-dial-pin sp-dial-pin-guess",
       g.isPreview ? "sp-guess-ray sp-guess-ray-preview" : "sp-guess-ray sp-guess-ray-guess",
+      counterTeamStyle,
     );
   }
 
@@ -168,7 +172,12 @@ export function renderDial(
     lineLayer.querySelectorAll(".sp-guess-ray-local").forEach((node) => node.remove());
     if (!guess) return;
     const pt = point ?? guessPointFromPolar(arc, guess.degree, guess.distance);
-    appendGuessVisual(pt, "sp-dial-pin sp-dial-pin-local", "sp-guess-ray sp-guess-ray-local");
+    appendGuessVisual(
+      pt,
+      "sp-dial-pin sp-dial-pin-local",
+      "sp-guess-ray sp-guess-ray-local",
+      isCounterTeamPlayer(room, localPlayerUuid),
+    );
   }
 
   if (localGuess && Number.isFinite(localGuess.degree) && Number.isFinite(localGuess.distance)) {
@@ -328,9 +337,12 @@ function guessPointFromPolar(arc, gameDegree, distance) {
   return polar(arc.cx, arc.cy, arc.r * clampDistance(distance), gameToDialDeg(gameDegree));
 }
 
-function guessStringRay(x1, y1, point, className) {
+function guessStringRay(x1, y1, point, className, counterTeamStyle = false) {
   const group = document.createElementNS("http://www.w3.org/2000/svg", "g");
-  group.setAttribute("class", className);
+  group.setAttribute(
+    "class",
+    counterTeamStyle ? `${className} sp-guess-ray-counter` : className,
+  );
   group.setAttribute("pointer-events", "none");
 
   const d = stringPathD(x1, y1, point.x, point.y, 0);
@@ -349,12 +361,15 @@ function guessStringRay(x1, y1, point, className) {
     return group;
   }
 
+  const darkPath = counterTeamStyle ? dTwist : d;
+  const lightPath = counterTeamStyle ? d : dTwist;
+
   const darkStrand = document.createElementNS("http://www.w3.org/2000/svg", "path");
-  darkStrand.setAttribute("d", d);
+  darkStrand.setAttribute("d", darkPath);
   darkStrand.setAttribute("class", "sp-guess-ray-stroke sp-guess-ray-strand-dark");
 
   const lightStrand = document.createElementNS("http://www.w3.org/2000/svg", "path");
-  lightStrand.setAttribute("d", dTwist);
+  lightStrand.setAttribute("d", lightPath);
   lightStrand.setAttribute("class", "sp-guess-ray-stroke sp-guess-ray-strand-light");
 
   group.appendChild(darkStrand);
@@ -502,6 +517,12 @@ function round(value, digits) {
 
 function playerUuid(player) {
   return player && player.uuid ? player.uuid : "";
+}
+
+function isCounterTeamPlayer(room, playerUuid) {
+  if (!room || !playerUuid) return false;
+  const team = findPlayerTeam(room, playerUuid);
+  return team != null && team === counterTeam(room);
 }
 
 /** Halfway between the semicircle base (cy) and apex (cy − r). */
