@@ -560,12 +560,21 @@ body:has(.sp-game-main) {
   stroke: rgba(255, 255, 255, 0.24);
   stroke-width: 0.65;
   stroke-dasharray: 1.2 1.8;
+  opacity: 0;
+  transition: opacity 0.22s ease-in-out;
 }
 
 .sp-dial-hit-area {
   fill: rgba(255, 255, 255, 0.03);
   stroke: transparent;
   stroke-linecap: round;
+  opacity: 0;
+  transition: opacity 0.22s ease-in-out;
+}
+
+.sp-dial-arc-guide:hover .sp-dial-hit-outline,
+.sp-dial-arc-guide:hover .sp-dial-hit-area {
+  opacity: 1;
 }
 
 .sp-dial-ray {

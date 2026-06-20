@@ -106,8 +106,9 @@ export function renderDial(
 ) {
   const arc = normalizeArcGeometry(arcGeometry);
   const card = room.gameActiveCard;
-  const leftLabel = card && card.valueLeft ? card.valueLeft : "—";
-  const rightLabel = card && card.valueRight ? card.valueRight : "—";
+  const leftLabel = card?.valueLeft ? String(card.valueLeft).trim() : "";
+  const rightLabel = card?.valueRight ? String(card.valueRight).trim() : "";
+  const showCardLabels = Boolean(leftLabel || rightLabel);
   const guesses = Array.isArray(room.gameGuesses) ? room.gameGuesses : [];
   const targetDeg = room.gameTargetDegree != null ? Number(room.gameTargetDegree) : NaN;
   const showTarget = shouldShowTarget(room, localPlayerUuid);
@@ -120,15 +121,20 @@ export function renderDial(
   overlay.setAttribute("class", "sp-dial-overlay");
   ensureTargetStripePattern(overlay);
 
+  const arcGuide = document.createElementNS("http://www.w3.org/2000/svg", "g");
+  arcGuide.setAttribute("class", "sp-dial-arc-guide");
+
   const arcOutline = document.createElementNS("http://www.w3.org/2000/svg", "path");
   arcOutline.setAttribute("d", semicircleArcPathD(arc.cx, arc.cy, arc.r));
   arcOutline.setAttribute("class", "sp-dial-hit-outline");
-  overlay.appendChild(arcOutline);
+  arcGuide.appendChild(arcOutline);
 
   const dialHitArea = document.createElementNS("http://www.w3.org/2000/svg", "path");
   dialHitArea.setAttribute("d", semicircleSectorPathD(arc.cx, arc.cy, arc.r));
   dialHitArea.setAttribute("class", "sp-dial-hit-area");
-  overlay.appendChild(dialHitArea);
+  arcGuide.appendChild(dialHitArea);
+
+  overlay.appendChild(arcGuide);
 
   const lineLayer = document.createElementNS("http://www.w3.org/2000/svg", "g");
   overlay.appendChild(lineLayer);
@@ -137,9 +143,11 @@ export function renderDial(
 
   const cardTextY = arc.cy - arc.r * DIAL_CARD_TEXT_RADIUS_RATIO;
 
-  const cardGroup = createCardValueGroup(leftLabel, rightLabel);
-  cardGroup.setAttribute("transform", `translate(${arc.cx}, ${cardTextY})`);
-  overlay.appendChild(cardGroup);
+  if (showCardLabels) {
+    const cardGroup = createCardValueGroup(leftLabel, rightLabel);
+    cardGroup.setAttribute("transform", `translate(${arc.cx}, ${cardTextY})`);
+    overlay.appendChild(cardGroup);
+  }
 
   function appendGuessVisual(point, pinClass, lineClass, counterTeamStyle = false) {
     lineLayer.appendChild(guessStringRay(arc.cx, arc.cy, point, lineClass, counterTeamStyle));
@@ -534,7 +542,8 @@ const DIAL_CARD_DIVIDER_HEIGHT = DIAL_CARD_FONT_SIZE * 9;
 const DIAL_CARD_LABEL_GUTTER = 4.2;
 
 function wrapDialCardLabel(text, maxChars = DIAL_CARD_LABEL_MAX_CHARS) {
-  const normalized = String(text ?? "").trim() || "—";
+  const normalized = String(text ?? "").trim();
+  if (!normalized) return [];
   const words = normalized.split(/\s+/);
   /** @type {string[]} */
   const lines = [];
@@ -560,10 +569,11 @@ function wrapDialCardLabel(text, maxChars = DIAL_CARD_LABEL_MAX_CHARS) {
     }
   }
   if (current) lines.push(current);
-  return lines.length ? lines : ["—"];
+  return lines;
 }
 
 function createWrappedCardValueText(lines, anchor, x, side) {
+  if (!lines.length) return null;
   const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
   text.setAttribute("text-anchor", anchor);
   text.setAttribute("class", `sp-dial-card-text sp-dial-card-value-${side}`);
@@ -590,9 +600,8 @@ function createCardValueGroup(leftLabel, rightLabel) {
   const leftLines = wrapDialCardLabel(leftLabel);
   const rightLines = wrapDialCardLabel(rightLabel);
 
-  group.appendChild(
-    createWrappedCardValueText(leftLines, "end", -DIAL_CARD_LABEL_GUTTER, "left"),
-  );
+  const leftText = createWrappedCardValueText(leftLines, "end", -DIAL_CARD_LABEL_GUTTER, "left");
+  if (leftText) group.appendChild(leftText);
 
   const divider = document.createElementNS("http://www.w3.org/2000/svg", "line");
   divider.setAttribute("x1", "0");
@@ -600,10 +609,9 @@ function createCardValueGroup(leftLabel, rightLabel) {
   divider.setAttribute("x2", "0");
   divider.setAttribute("y2", String(DIAL_CARD_DIVIDER_HEIGHT / 2));
   divider.setAttribute("class", "sp-dial-card-divider");
-
   group.appendChild(divider);
-  group.appendChild(
-    createWrappedCardValueText(rightLines, "start", DIAL_CARD_LABEL_GUTTER, "right"),
-  );
+
+  const rightText = createWrappedCardValueText(rightLines, "start", DIAL_CARD_LABEL_GUTTER, "right");
+  if (rightText) group.appendChild(rightText);
   return group;
 }
